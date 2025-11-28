@@ -6,21 +6,10 @@ const HEIGHT = canvas.height;
 
 // ==== TILE MAP SETUP ====
 const TILE_SIZE = 60; // 16 x 9 grid (960x540)
-const COLS = Math.floor(WIDTH / TILE_SIZE);
-const ROWS = Math.floor(HEIGHT / TILE_SIZE);
+const COLS = Math.floor(WIDTH / TILE_SIZE);  // 16
+const ROWS = Math.floor(HEIGHT / TILE_SIZE); // 9
 
 // 0 = floor, 1 = wall
-// Layout: perimeter walls, 4 rooms, central corridor (2 tiles wide in the middle)
-// Corridor columns: 7 and 8
-// Rooms:
-//  - Top-left:  cols 1–6, rows 1–3
-//  - Top-right: cols 9–14, rows 1–3
-//  - Bottom-left: cols 1–6, rows 5–7
-//  - Bottom-right: cols 9–14, rows 5–7
-//
-// Doors:
-//  - Each room has door to corridor
-//  - Vertical doors between top/bottom rooms on each side
 let map = [];
 
 // Start with all walls
@@ -32,55 +21,61 @@ for (let y = 0; y < ROWS; y++) {
   map.push(row);
 }
 
-// Helper to carve floor rectangle
+// Helper to carve floor rectangle (inclusive)
 function carveRect(x1, y1, x2, y2) {
   for (let y = y1; y <= y2; y++) {
     for (let x = x1; x <= x2; x++) {
-      if (y > 0 && y < ROWS - 1 && x > 0 && x < COLS - 1) {
+      if (y >= 0 && y < ROWS && x >= 0 && x < COLS) {
         map[y][x] = 0;
       }
     }
   }
 }
 
-// Carve central corridor (full height, 2 tiles wide)
-carveRect(7, 1, 8, ROWS - 2);
+// ---- Layout design (Zelda-style 4 rooms + corridor) ----
+// Perimeter walls stay as 1 (we don't carve on row 0, row 8, col 0, col 15)
 
-// Carve top-left room
-carveRect(1, 1, 6, 3);
-// Carve top-right room
-carveRect(9, 1, 14, 3);
-// Carve bottom-left room
-carveRect(1, 5, 6, 7);
-// Carve bottom-right room
-carveRect(9, 5, 14, 7);
+// Central corridor (2 tiles wide) from row 1 to row 7
+// Columns 7 and 8 are open corridor
+carveRect(7, 1, 8, 7);
 
-// ==== DOORS (ALL ONE TILE WIDE) ====
+// Top-left room floor: cols 1–5, rows 1–3
+carveRect(1, 1, 5, 3);
 
-// Doors from rooms → corridor
-// Top-left room → corridor
-map[2][7] = 0;
+// Top-right room floor: cols 10–14, rows 1–3
+carveRect(10, 1, 14, 3);
 
-// Bottom-left room → corridor
-map[6][7] = 0;
+// Bottom-left room floor: cols 1–5, rows 5–7
+carveRect(1, 5, 5, 7);
 
-// Top-right room → corridor
-map[2][8] = 0;
+// Bottom-right room floor: cols 10–14, rows 5–7
+carveRect(10, 5, 14, 7);
 
-// Bottom-right room → corridor
-map[6][8] = 0;
+// Row 4 is our horizontal wall between top and bottom rooms.
+// We leave it as walls everywhere EXCEPT corridor, which is already carved.
 
-// Doors between rooms (top ↔ bottom)
-// Left side: R1 ↔ R3
-map[4][3] = 0;
+// ---- Doors (all ONE TILE wide) ----
 
-// Right side: R2 ↔ R4
-map[4][12] = 0;
+// Rooms → corridor:
+// TL → corridor (through wall at col 6)
+map[2][6] = 0;
+// BL → corridor
+map[6][6] = 0;
+// TR → corridor (through wall at col 9)
+map[2][9] = 0;
+// BR → corridor
+map[6][9] = 0;
+
+// Between top and bottom rooms (vertical doors in horizontal wall row 4):
+// Left side: TL ↔ BL (in the wall between them)
+map[4][3] = 0; // roughly center of left rooms
+// Right side: TR ↔ BR
+map[4][12] = 0; // roughly center of right rooms
 
 // ==== PLAYER SETUP ====
 const player = {
-  x: (7.5 * TILE_SIZE),   // start in central corridor near bottom
-  y: (6.5 * TILE_SIZE),
+  x: 7.5 * TILE_SIZE,   // start in central corridor near bottom
+  y: 6.5 * TILE_SIZE,
   speed: 0.18, // pixels per ms
   dir: "up", // "up" | "down" | "left" | "right"
   moving: false,
