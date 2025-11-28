@@ -253,7 +253,13 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "Enter" && gameState === "title") {
     gameState = "play";
     showMessage("Infiltrate the offices. Avoid the drones.", 3000);
+    startBgm();   // <<< start music here
     return;
+  }
+
+  // M to mute/unmute music
+  if (e.key === "m" || e.key === "M") {
+    toggleMute();
   }
 
   if (e.key in keys) keys[e.key] = true;
@@ -283,6 +289,26 @@ function showMessage(text, duration) {
 let lastTime = 0;
 let idleTime = 0;
 let globalTime = 0;
+
+// ==== AUDIO ====
+let bgmStarted = false;
+const bgm = new Audio("bgm.mp3");
+bgm.loop = true;
+bgm.volume = 0.4; // adjust to taste
+
+function startBgm() {
+  if (bgmStarted) return;
+  bgmStarted = true;
+  bgm.currentTime = 0;
+  bgm.play().catch(() => {
+    // some browsers block autoplay; will try again on next input
+    bgmStarted = false;
+  });
+}
+
+function toggleMute() {
+  bgm.muted = !bgm.muted;
+}
 
 // ==== GUARDS (FLOATING DRONES) ====
 const VISION_RANGE = 260;
