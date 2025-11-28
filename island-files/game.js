@@ -248,12 +248,47 @@ const keys = {
 
 let spacePressed = false;
 
+// ==== MESSAGES ====
+let messageText = "";
+let messageTimer = 0; // ms
+
+function showMessage(text, duration) {
+  messageText = text;
+  messageTimer = duration;
+}
+
+let lastTime = 0;
+let idleTime = 0;
+let globalTime = 0;
+
+// ==== AUDIO ====
+let bgmStarted = false;
+// use the file you uploaded:
+const bgm = new Audio("game_music.mp3");
+bgm.loop = true;
+bgm.volume = 0.4; // adjust to taste
+
+function startBgm() {
+  if (bgmStarted) return;
+  bgmStarted = true;
+  bgm.currentTime = 0;
+  bgm.play().catch(() => {
+    // some browsers block autoplay; will try again on next input
+    bgmStarted = false;
+  });
+}
+
+function toggleMute() {
+  bgm.muted = !bgm.muted;
+}
+
+// ==== INPUT LISTENERS (after audio + helpers so they exist) ====
 window.addEventListener("keydown", (e) => {
   // ENTER starts game from title
   if (e.code === "Enter" && gameState === "title") {
     gameState = "play";
     showMessage("Infiltrate the offices. Avoid the drones.", 3000);
-    startBgm();   // <<< start music here
+    startBgm();   // start music here
     return;
   }
 
@@ -276,39 +311,6 @@ window.addEventListener("keyup", (e) => {
     spacePressed = false;
   }
 });
-
-// ==== MESSAGES ====
-let messageText = "";
-let messageTimer = 0; // ms
-
-function showMessage(text, duration) {
-  messageText = text;
-  messageTimer = duration;
-}
-
-let lastTime = 0;
-let idleTime = 0;
-let globalTime = 0;
-
-// ==== AUDIO ====
-let bgmStarted = false;
-const bgm = new Audio("bgm.mp3");
-bgm.loop = true;
-bgm.volume = 0.4; // adjust to taste
-
-function startBgm() {
-  if (bgmStarted) return;
-  bgmStarted = true;
-  bgm.currentTime = 0;
-  bgm.play().catch(() => {
-    // some browsers block autoplay; will try again on next input
-    bgmStarted = false;
-  });
-}
-
-function toggleMute() {
-  bgm.muted = !bgm.muted;
-}
 
 // ==== GUARDS (FLOATING DRONES) ====
 const VISION_RANGE = 260;
@@ -958,11 +960,15 @@ function drawTitleScreen() {
   ctx.font = "16px monospace";
   ctx.fillText("Move: Arrow keys or WASD · Interact: SPACE", WIDTH / 2, HEIGHT / 2 + 90);
 
+  ctx.fillStyle = "#9ca3af";
+  ctx.font = "14px monospace";
+  ctx.fillText("Press M to mute/unmute music", WIDTH / 2, HEIGHT / 2 + 115);
+
   // Press Enter prompt
   const alpha = 0.4 + 0.6 * Math.abs(Math.sin(globalTime / 500));
   ctx.fillStyle = `rgba(190,242,100,${alpha})`;
   ctx.font = "20px monospace";
-  ctx.fillText("PRESS ENTER TO BEGIN", WIDTH / 2, HEIGHT / 2 + 135);
+  ctx.fillText("PRESS ENTER TO BEGIN", WIDTH / 2, HEIGHT / 2 + 150);
 }
 
 // ===== MAIN DRAW =====
