@@ -72,12 +72,10 @@ buildCluster(9);
 
 // ==== CORRIDOR DOOR BETWEEN CLUSTERS ====
 // Door between clusters in corridor (row 8)
-// First make whole row a wall "barrier"
 for (let x = 0; x < COLS; x++) {
-  map[8][x] = 1;
+  map[8][x] = 1; // wall row between clusters
 }
-// Single-tile *locked* corridor door at x = 7
-map[8][7] = 2; // locked door tile type
+map[8][7] = 2; // locked corridor door tile
 
 let corridorDoorUnlocked = false;
 
@@ -156,8 +154,8 @@ addOfficesForCluster(0);  // top 4 rooms
 addOfficesForCluster(9);  // bottom 4 rooms
 
 // ==== KEYCARD (OBJECTIVE) ====
-// Put a keycard in the top-right room of the bottom cluster (feels like "security office")
-const keyTile = tileCenter(12, 11); // baseRow 9 -> 9+2 = 11 (top-right room center)
+// Put a keycard in the top-right room of the bottom cluster
+const keyTile = tileCenter(12, 11); // baseRow 9 -> 9+2 = 11 (TR room)
 props.push({
   type: "keycard",
   x: keyTile.x - 15,
@@ -204,6 +202,7 @@ sprite.onload = () => {
   FRAME_H = sprite.height / SPRITE_ROWS;
 };
 
+// INPUT
 const keys = {
   ArrowUp: false,
   ArrowDown: false,
@@ -215,12 +214,21 @@ const keys = {
   d: false
 };
 
+let spacePressed = false; // NEW: track spacebar
+
 window.addEventListener("keydown", (e) => {
   if (e.key in keys) keys[e.key] = true;
+  if (e.code === "Space") {
+    e.preventDefault();
+    spacePressed = true;
+  }
 });
 
 window.addEventListener("keyup", (e) => {
   if (e.key in keys) keys[e.key] = false;
+  if (e.code === "Space") {
+    spacePressed = false;
+  }
 });
 
 let lastTime = 0;
@@ -250,7 +258,7 @@ function canMoveTo(nx, ny) {
 
   const tile = map[row][col];
   if (tile === 1) return false;                   // wall
-  if (tile === 2 && !corridorDoorUnlocked) return false; // locked corridor door
+  if (tile === 2 && !corridorDoorUnlocked) return false; // locked door
 
   // Props collision
   for (const p of props) {
@@ -263,22 +271,26 @@ function canMoveTo(nx, ny) {
   return true;
 }
 
+// NEW: press-space + proximity pickup
 function checkKeycardPickup() {
+  if (!spacePressed) return;
+
   for (const p of props) {
     if (p.type !== "keycard" || p.collected) continue;
 
-    // simple overlap: treat player as a point at (player.x, player.y)
-    if (
-      player.x > p.x &&
-      player.x < p.x + p.w &&
-      player.y > p.y &&
-      player.y < p.y + p.h
-    ) {
+    const centerX = p.x + p.w / 2;
+    const centerY = p.y + p.h / 2;
+    const dx = player.x - centerX;
+    const dy = player.y - centerY;
+    const dist = Math.hypot(dx, dy);
+
+    const pickupRadius = 70; // how close you must be
+
+    if (dist < pickupRadius) {
       p.collected = true;
       corridorDoorUnlocked = true;
-      // Open the tile in the map so it's a normal floor now
-      map[8][7] = 0;
-      showMessage("Keycard acquired. Corridor door unlocked.", 3000);
+      map[8][7] = 0; // open corridor door
+      showMessage("Keycard acquired. Press ↑ to reach the upper offices.", 3500);
     }
   }
 }
@@ -334,7 +346,7 @@ function update(dt) {
     idleTime += dt;
   }
 
-  // Keycard pickup & door unlock
+  // Keycard pickup (space + near)
   checkKeycardPickup();
 
   // Message timer
@@ -420,16 +432,35 @@ function drawPlant(p) {
   ctx.fillRect(p.x + p.w / 2 - 4, p.y - cameraY + p.h - 6, 8, 6);
 }
 
+// NEW: keycard + green animated arrow
 function drawKeycard(p) {
   if (p.collected) return;
+
   const y = p.y - cameraY;
-  ctx.fillStyle = "#facc15"; // bright yellow
+
+  // Keycard body
+  ctx.fillStyle = "#facc15";
   ctx.fillRect(p.x, y, p.w, p.h);
   ctx.strokeStyle = "#854d0e";
   ctx.lineWidth = 2;
   ctx.strokeRect(p.x, y, p.w, p.h);
   ctx.fillStyle = "#1f2937";
   ctx.fillRect(p.x + 4, y + 6, p.w - 8, 4); // stripe
+
+  // Pulsing green arrow above it
+  const cx = p.x + p.w / 2;
+  const arrowBaseY = y - 12;
+  const pulse = 0.5 + 0.5 * Math.sin(globalTime / 300);
+  const alpha = 0.3 + 0.7 * pulse; // fade in/out
+
+  ctx.fillStyle = `rgba(34,197,94,${alpha})`; // bright green w/ alpha
+
+  ctx.beginPath();
+  ctx.moveTo(cx, arrowBaseY - 18);      // tip
+  ctx.lineTo(cx - 10, arrowBaseY);      // bottom left
+  ctx.lineTo(cx + 10, arrowBaseY);      // bottom right
+  ctx.closePath();
+  ctx.fill();
 }
 
 function drawProps() {
@@ -462,14 +493,13 @@ function draw() {
       const py = y * TILE_SIZE - cameraY;
 
       if (tile === 1) {
-        // wall
         ctx.fillStyle = "#111827";
         ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
         ctx.strokeStyle = "#1f2937";
         ctx.lineWidth = 2;
         ctx.strokeRect(px + 1, py + 1, TILE_SIZE - 2, TILE_SIZE - 2);
       } else if (tile === 2) {
-        // locked corridor door (visual)
+        // locked corridor door
         ctx.fillStyle = "#020617";
         ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
         ctx.fillStyle = corridorDoorUnlocked ? "#16a34a" : "#9ca3af";
@@ -523,6 +553,19 @@ function draw() {
     ctx.textBaseline = "middle";
     ctx.fillText(messageText, WIDTH / 2, 20);
   }
+
+  // Optional hint when key not collected
+  const keyProp = props.find(p => p.type === "keycard" && !p.collected);
+  if (keyProp) {
+    ctx.fillStyle = "rgba(15,23,42,0.75)";
+    ctx.fillRect(0, HEIGHT - 40, WIDTH, 40);
+    ctx.fillStyle = "#a7f3d0";
+    ctx.font = "16px monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("Find the keycard and press SPACE to pick it up.", WIDTH / 2, HEIGHT - 20);
+  }
 }
 
 requestAnimationFrame(loop);
+
