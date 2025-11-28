@@ -56,7 +56,6 @@ function buildCluster(baseRow) {
   carveRect(10, baseRow + 5, 14, baseRow + 7);
 
   // Doors (all 1 tile wide)
-
   // Rooms → corridor
   map[baseRow + 2][6] = 0; // TL → corridor
   map[baseRow + 6][6] = 0; // BL → corridor
@@ -170,14 +169,6 @@ props.push({
   collected: false
 });
 
-let messageText = "";
-let messageTimer = 0; // ms
-
-function showMessage(text, duration) {
-  messageText = text;
-  messageTimer = duration;
-}
-
 // ==== PLAYER SETUP ====
 const player = {
   x: 7.5 * TILE_SIZE,            // central corridor
@@ -189,10 +180,9 @@ const player = {
   frameTime: 0
 };
 
-// Camera (vertical scroll)
 let cameraY = WORLD_HEIGHT - HEIGHT;
 
-// Sprite sheet info
+// Player sprite sheet
 const sprite = new Image();
 sprite.src = "agent.png";
 const SPRITE_COLS = 3;
@@ -206,7 +196,38 @@ sprite.onload = () => {
   FRAME_H = sprite.height / SPRITE_ROWS;
 };
 
-// INPUT
+// ==== NPC SETUP ====
+const npcStart = tileCenter(12, 2); // top-right room of upper cluster
+
+const npc = {
+  x: npcStart.x,
+  y: npcStart.y,
+  dir: "left",
+  frame: 0,
+  frameTime: 0,
+  speed: 0.06,
+  moving: true,
+  minX: npcStart.x - TILE_SIZE, // patrol range inside room
+  maxX: npcStart.x + TILE_SIZE,
+  talkRadius: 80,
+  talking: false
+};
+
+let npcDialog = "";
+let npcDialogTimer = 0;
+
+// NPC sprite sheet
+const npcSprite = new Image();
+npcSprite.src = "npc.png";
+let NPC_FRAME_W = 32;
+let NPC_FRAME_H = 32;
+
+npcSprite.onload = () => {
+  NPC_FRAME_W = npcSprite.width / 3;
+  NPC_FRAME_H = npcSprite.height / 4;
+};
+
+// ==== INPUT ====
 const keys = {
   ArrowUp: false,
   ArrowDown: false,
@@ -243,6 +264,15 @@ window.addEventListener("keyup", (e) => {
   }
 });
 
+// ==== MESSAGES ====
+let messageText = "";
+let messageTimer = 0; // ms
+
+function showMessage(text, duration) {
+  messageText = text;
+  messageTimer = duration;
+}
+
 let lastTime = 0;
 let idleTime = 0;
 let globalTime = 0;
@@ -278,6 +308,7 @@ const guards = [
   }
 ];
 
+// ==== LEVEL / DETECTION ====
 function resetLevel() {
   player.x = 7.5 * TILE_SIZE;
   player.y = 15.5 * TILE_SIZE;
@@ -293,6 +324,14 @@ function resetLevel() {
       p.collected = false;
     }
   }
+
+  // Reset NPC dialog and position
+  npc.x = npcStart.x;
+  npc.y = npcStart.y;
+  npc.dir = "left";
+  npc.talking = false;
+  npcDialog = "";
+  npcDialogTimer = 0;
 }
 
 function triggerDetection() {
@@ -401,6 +440,54 @@ function updateGuards(dt) {
   }
 }
 
+// ==== NPC UPDATE ====
+function updateNpc(dt) {
+  // simple left-right patrol
+  npc.frameTime += dt;
+  if (npc.frameTime > 200) {
+    npc.frameTime = 0;
+    npc.frame = (npc.frame + 1) % 3;
+  }
+
+  let nx = npc.x;
+  if (npc.dir === "left") {
+    nx -= npc.speed * dt;
+    if (nx < npc.minX) {
+      nx = npc.minX;
+      npc.dir = "right";
+    }
+  } else {
+    nx += npc.speed * dt;
+    if (nx > npc.maxX) {
+      nx = npc.maxX;
+      npc.dir = "left";
+    }
+  }
+  npc.x = nx;
+
+  // TALK interaction
+  if (spacePressed && !npc.talking) {
+    const dx = player.x - npc.x;
+    const dy = player.y - npc.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < npc.talkRadius) {
+      npc.talking = true;
+      npcDialog =
+        "I'm glad you're here Wangotango! only you can find those files!!!";
+      npcDialogTimer = 5000;
+    }
+  }
+
+  if (npcDialogTimer > 0) {
+    npcDialogTimer -= dt;
+    if (npcDialogTimer <= 0) {
+      npcDialogTimer = 0;
+      npc.talking = false;
+      npcDialog = "";
+    }
+  }
+}
+
 // ===== MAIN LOOP =====
 function loop(timestamp) {
   if (!lastTime) lastTime = timestamp;
@@ -416,6 +503,7 @@ function loop(timestamp) {
   requestAnimationFrame(loop);
 }
 
+// ==== MOVEMENT / INTERACTION HELPERS ====
 function canMoveTo(nx, ny) {
   // Tile collision
   const col = Math.floor(nx / TILE_SIZE);
@@ -483,8 +571,9 @@ function checkDoorOpen() {
   }
 }
 
+// ==== UPDATE ====
 function update(dt) {
-  // Always tick message timer + idle bobbing time, even on title
+  // message at top
   if (messageTimer > 0) {
     messageTimer -= dt;
     if (messageTimer <= 0) {
@@ -493,7 +582,7 @@ function update(dt) {
     }
   }
 
-  // On title screen: no movement, no guards, just animations
+  // On title screen: just animate background timers
   if (gameState !== "play") {
     idleTime += dt;
     return;
@@ -555,8 +644,12 @@ function update(dt) {
 
   // Guards (movement + detection)
   updateGuards(dt);
+
+  // NPC
+  updateNpc(dt);
 }
 
+// ==== CAMERA ====
 function updateCamera() {
   cameraY = player.y - HEIGHT / 2;
   if (cameraY < 0) cameraY = 0;
@@ -566,7 +659,7 @@ function updateCamera() {
 // ==== PROP DRAWING ====
 function drawDesk(p) {
   ctx.fillStyle = "#8b4a2f";
-  ctx.fillRect(p.x - 0, p.y - cameraY, p.w, p.h);
+  ctx.fillRect(p.x, p.y - cameraY, p.w, p.h);
   ctx.fillStyle = "#b96b45";
   ctx.fillRect(p.x, p.y - cameraY, p.w, 4);
   const legW = 8, legH = 18;
@@ -737,6 +830,45 @@ function drawProps() {
   }
 }
 
+// ===== NPC DRAW =====
+function drawNpc() {
+  const npcx = npc.x;
+  const npcy = npc.y - cameraY;
+
+  if (npcSprite.complete && npcSprite.naturalWidth) {
+    const dirIndex =
+      npc.dir === "right" ? 1 :
+      npc.dir === "left"  ? 3 :
+      npc.dir === "down"  ? 0 : 2;
+
+    const sx = npc.frame * NPC_FRAME_W;
+    const sy = dirIndex * NPC_FRAME_H;
+
+    const drawSize = 64;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(
+      npcSprite,
+      sx, sy, NPC_FRAME_W, NPC_FRAME_H,
+      npcx - drawSize / 2,
+      npcy - drawSize / 2,
+      drawSize,
+      drawSize
+    );
+  }
+
+  // Arrow over NPC
+  const pulse = 0.5 + 0.5 * Math.sin(globalTime / 300);
+  const alpha = 0.35 + 0.6 * pulse;
+  ctx.fillStyle = `rgba(34,197,94,${alpha})`;
+
+  ctx.beginPath();
+  ctx.moveTo(npcx, npcy - 50);      // tip
+  ctx.lineTo(npcx - 12, npcy - 70); // upper left
+  ctx.lineTo(npcx + 12, npcy - 70); // upper right
+  ctx.closePath();
+  ctx.fill();
+}
+
 // ===== TITLE SCREEN DRAWING =====
 function drawTitleScreen() {
   // Dark background
@@ -756,7 +888,7 @@ function drawTitleScreen() {
 
   const pulse = 0.5 + 0.5 * Math.sin(globalTime / 400);
 
-  ctx.fillStyle = `rgb(${120 + pulse * 60},${249},${255})`;
+  ctx.fillStyle = `rgb(${120 + pulse * 60},249,255)`;
   ctx.font = "bold 42px monospace";
   ctx.fillText("THE ISLAND FILES", WIDTH / 2, HEIGHT / 2 - 60);
 
@@ -767,7 +899,7 @@ function drawTitleScreen() {
   ctx.fillStyle = "#e5e7eb";
   ctx.font = "18px monospace";
   ctx.fillText("Sneak past drones, grab the keycard,", WIDTH / 2, HEIGHT / 2 + 20);
-  ctx.fillText("unlock the corridor, reach the upper offices.", WIDTH / 2, HEIGHT / 2 + 50);
+  ctx.fillText("talk to your contact, reach the upper offices.", WIDTH / 2, HEIGHT / 2 + 50);
 
   // Controls
   ctx.fillStyle = "#a7f3d0";
@@ -781,6 +913,7 @@ function drawTitleScreen() {
   ctx.fillText("PRESS ENTER TO BEGIN", WIDTH / 2, HEIGHT / 2 + 135);
 }
 
+// ===== MAIN DRAW =====
 function draw() {
   ctx.clearRect(0, 0, WIDTH, HEIGHT);
 
@@ -827,6 +960,9 @@ function draw() {
   // Props
   drawProps();
 
+  // NPC
+  drawNpc();
+
   // Player
   const px = player.x;
   const py = player.y - cameraY;
@@ -853,7 +989,7 @@ function draw() {
     );
   }
 
-  // HUD message
+  // HUD message (top)
   if (messageTimer > 0 && messageText) {
     ctx.fillStyle = "rgba(15,23,42,0.8)";
     ctx.fillRect(0, 0, WIDTH, 40);
@@ -879,8 +1015,25 @@ function draw() {
   } else if (hasKeycard && !corridorDoorUnlocked) {
     ctx.fillText("Go to the corridor door and press SPACE to unlock it.", WIDTH / 2, HEIGHT - 20);
   } else if (corridorDoorUnlocked) {
-    ctx.fillText("Avoid the drones and reach the upper offices.", WIDTH / 2, HEIGHT - 20);
+    ctx.fillText("Avoid the drones, talk to your contact in the upper offices.", WIDTH / 2, HEIGHT - 20);
+  }
+
+  // NPC dialog box
+  if (npc.talking && npcDialog) {
+    ctx.fillStyle = "rgba(0,0,0,0.8)";
+    ctx.fillRect(20, HEIGHT - 130, WIDTH - 40, 90);
+
+    ctx.strokeStyle = "#4ade80";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(22, HEIGHT - 128, WIDTH - 44, 86);
+
+    ctx.fillStyle = "#f9fafb";
+    ctx.font = "18px monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(npcDialog, WIDTH / 2, HEIGHT - 85);
   }
 }
 
 requestAnimationFrame(loop);
+
