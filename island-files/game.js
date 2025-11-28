@@ -8,10 +8,11 @@ const TILE_SIZE = 60; // 16 x 9 visible grid
 const COLS = Math.floor(WIDTH / TILE_SIZE);   // 16
 const VIEW_ROWS = Math.floor(HEIGHT / TILE_SIZE); // 9
 
-const WORLD_ROWS = 18; // 2 x 9 rows (two “floors” stacked)
+const WORLD_ROWS = 18; // 2 x 9 rows (two "floors" stacked)
 const WORLD_HEIGHT = WORLD_ROWS * TILE_SIZE;
 
-// 0 = floor, 1 = wall
+// TILE TYPES
+// 0 = floor, 1 = wall, 2 = locked corridor door
 let map = [];
 
 // Build solid walls everywhere
@@ -69,11 +70,16 @@ buildCluster(0);
 // Bottom cluster (rows 9..17)
 buildCluster(9);
 
+// ==== CORRIDOR DOOR BETWEEN CLUSTERS ====
 // Door between clusters in corridor (row 8)
+// First make whole row a wall "barrier"
 for (let x = 0; x < COLS; x++) {
-  map[8][x] = 1; // wall row between clusters
+  map[8][x] = 1;
 }
-map[8][7] = 0;    // single-tile door in corridor
+// Single-tile *locked* corridor door at x = 7
+map[8][7] = 2; // locked door tile type
+
+let corridorDoorUnlocked = false;
 
 // ==== OFFICE PROPS ====
 const props = [];
@@ -149,10 +155,31 @@ function addOfficesForCluster(baseRow) {
 addOfficesForCluster(0);  // top 4 rooms
 addOfficesForCluster(9);  // bottom 4 rooms
 
+// ==== KEYCARD (OBJECTIVE) ====
+// Put a keycard in the top-right room of the bottom cluster (feels like "security office")
+const keyTile = tileCenter(12, 11); // baseRow 9 -> 9+2 = 11 (top-right room center)
+props.push({
+  type: "keycard",
+  x: keyTile.x - 15,
+  y: keyTile.y - 10,
+  w: 30,
+  h: 18,
+  solid: false,
+  collected: false
+});
+
+let messageText = "";
+let messageTimer = 0; // ms
+
+function showMessage(text, duration) {
+  messageText = text;
+  messageTimer = duration;
+}
+
 // ==== PLAYER SETUP ====
 const player = {
   x: 7.5 * TILE_SIZE,            // central corridor
-  y: (15.5) * TILE_SIZE,         // near bottom cluster
+  y: 15.5 * TILE_SIZE,           // near bottom cluster
   speed: 0.18,
   dir: "up",
   moving: false,
@@ -220,7 +247,10 @@ function canMoveTo(nx, ny) {
   const row = Math.floor(ny / TILE_SIZE);
 
   if (row < 0 || row >= WORLD_ROWS || col < 0 || col >= COLS) return false;
-  if (map[row][col] === 1) return false;
+
+  const tile = map[row][col];
+  if (tile === 1) return false;                   // wall
+  if (tile === 2 && !corridorDoorUnlocked) return false; // locked corridor door
 
   // Props collision
   for (const p of props) {
@@ -231,6 +261,26 @@ function canMoveTo(nx, ny) {
   }
 
   return true;
+}
+
+function checkKeycardPickup() {
+  for (const p of props) {
+    if (p.type !== "keycard" || p.collected) continue;
+
+    // simple overlap: treat player as a point at (player.x, player.y)
+    if (
+      player.x > p.x &&
+      player.x < p.x + p.w &&
+      player.y > p.y &&
+      player.y < p.y + p.h
+    ) {
+      p.collected = true;
+      corridorDoorUnlocked = true;
+      // Open the tile in the map so it's a normal floor now
+      map[8][7] = 0;
+      showMessage("Keycard acquired. Corridor door unlocked.", 3000);
+    }
+  }
 }
 
 function update(dt) {
@@ -246,8 +296,10 @@ function update(dt) {
 
   if (player.moving) {
     const len = Math.hypot(dx, dy);
-    dx /= len;
-    dy /= len;
+    if (len !== 0) {
+      dx /= len;
+      dy /= len;
+    }
 
     const stepX = dx * player.speed * dt;
     const stepY = dy * player.speed * dt;
@@ -280,6 +332,18 @@ function update(dt) {
     player.frame = 1;
     player.frameTime = 0;
     idleTime += dt;
+  }
+
+  // Keycard pickup & door unlock
+  checkKeycardPickup();
+
+  // Message timer
+  if (messageTimer > 0) {
+    messageTimer -= dt;
+    if (messageTimer <= 0) {
+      messageTimer = 0;
+      messageText = "";
+    }
   }
 }
 
@@ -356,8 +420,22 @@ function drawPlant(p) {
   ctx.fillRect(p.x + p.w / 2 - 4, p.y - cameraY + p.h - 6, 8, 6);
 }
 
+function drawKeycard(p) {
+  if (p.collected) return;
+  const y = p.y - cameraY;
+  ctx.fillStyle = "#facc15"; // bright yellow
+  ctx.fillRect(p.x, y, p.w, p.h);
+  ctx.strokeStyle = "#854d0e";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(p.x, y, p.w, p.h);
+  ctx.fillStyle = "#1f2937";
+  ctx.fillRect(p.x + 4, y + 6, p.w - 8, 4); // stripe
+}
+
 function drawProps() {
   for (const p of props) {
+    if (p.type === "keycard" && p.collected) continue;
+
     switch (p.type) {
       case "desk":    drawDesk(p); break;
       case "chair":   drawChair(p); break;
@@ -365,6 +443,7 @@ function drawProps() {
       case "tower":   drawTower(p); break;
       case "cabinet": drawCabinet(p); break;
       case "plant":   drawPlant(p); break;
+      case "keycard": drawKeycard(p); break;
     }
   }
 }
@@ -383,12 +462,22 @@ function draw() {
       const py = y * TILE_SIZE - cameraY;
 
       if (tile === 1) {
+        // wall
         ctx.fillStyle = "#111827";
         ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
         ctx.strokeStyle = "#1f2937";
         ctx.lineWidth = 2;
         ctx.strokeRect(px + 1, py + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+      } else if (tile === 2) {
+        // locked corridor door (visual)
+        ctx.fillStyle = "#020617";
+        ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+        ctx.fillStyle = corridorDoorUnlocked ? "#16a34a" : "#9ca3af";
+        ctx.fillRect(px + 8, py + 8, TILE_SIZE - 16, TILE_SIZE - 16);
+        ctx.fillStyle = "#111827";
+        ctx.fillRect(px + TILE_SIZE / 2 - 3, py + TILE_SIZE / 2 - 3, 6, 6);
       } else {
+        // floor
         ctx.fillStyle = "#020617";
         ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
       }
@@ -422,6 +511,17 @@ function draw() {
       drawSize,
       drawSize
     );
+  }
+
+  // HUD message
+  if (messageTimer > 0 && messageText) {
+    ctx.fillStyle = "rgba(15,23,42,0.8)";
+    ctx.fillRect(0, 0, WIDTH, 40);
+    ctx.fillStyle = "#e5e7eb";
+    ctx.font = "18px monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(messageText, WIDTH / 2, 20);
   }
 }
 
