@@ -236,6 +236,162 @@ let lastTime = 0;
 let idleTime = 0;
 let globalTime = 0;
 
+// ==== GUARDS (FLOATING DRONES) ====
+const VISION_RANGE = 260;
+const VISION_ANGLE = Math.PI / 4; // 45°
+
+const guards = [
+  // Bottom corridor drone, patrolling vertically
+  {
+    x: 7.5 * TILE_SIZE,
+    y: 14.5 * TILE_SIZE,
+    min: 13.5 * TILE_SIZE,
+    max: 16.5 * TILE_SIZE,
+    vertical: true,
+    dir: -1,
+    speed: 0.06,
+    facing: "up",
+    seed: Math.random() * 10
+  },
+  // Top corridor drone
+  {
+    x: 7.5 * TILE_SIZE,
+    y: 3.5 * TILE_SIZE,
+    min: 1.5 * TILE_SIZE,
+    max: 6.5 * TILE_SIZE,
+    vertical: true,
+    dir: 1,
+    speed: 0.06,
+    facing: "down",
+    seed: Math.random() * 10
+  }
+];
+
+function resetLevel() {
+  player.x = 7.5 * TILE_SIZE;
+  player.y = 15.5 * TILE_SIZE;
+  cameraY = WORLD_HEIGHT - HEIGHT;
+
+  hasKeycard = false;
+  corridorDoorUnlocked = false;
+  map[8][7] = 2; // close the door
+
+  // Reset keycard
+  for (const p of props) {
+    if (p.type === "keycard") {
+      p.collected = false;
+    }
+  }
+}
+
+function triggerDetection() {
+  resetLevel();
+  showMessage("Detected! Returning to start...", 2500);
+}
+
+function getFacingAngle(facing) {
+  switch (facing) {
+    case "right": return 0;
+    case "left":  return Math.PI;
+    case "down":  return Math.PI / 2;
+    case "up":    return -Math.PI / 2;
+    default:      return 0;
+  }
+}
+
+// LOS test: raycast between (x1,y1) and (x2,y2) against walls and solid props
+function hasLineOfSight(x1, y1, x2, y2) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const dist = Math.hypot(dx, dy);
+  if (dist === 0) return true;
+
+  const stepLen = TILE_SIZE / 4;
+  const steps = Math.ceil(dist / stepLen);
+  const stepX = dx / steps;
+  const stepY = dy / steps;
+
+  for (let i = 1; i <= steps; i++) {
+    const sx = x1 + stepX * i;
+    const sy = y1 + stepY * i;
+
+    const col = Math.floor(sx / TILE_SIZE);
+    const row = Math.floor(sy / TILE_SIZE);
+
+    if (row < 0 || row >= WORLD_ROWS || col < 0 || col >= COLS) return false;
+
+    const tile = map[row][col];
+    if (tile === 1 || (tile === 2 && !corridorDoorUnlocked)) {
+      return false;
+    }
+
+    // Solid props also block line of sight
+    for (const p of props) {
+      if (!p.solid) continue;
+      if (sx > p.x && sx < p.x + p.w && sy > p.y && sy < p.y + p.h) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+function guardSeesPlayer(g) {
+  const dx = player.x - g.x;
+  const dy = player.y - g.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist > VISION_RANGE) return false;
+
+  const angleToPlayer = Math.atan2(dy, dx);
+  const facingAngle = getFacingAngle(g.facing);
+
+  let diff = angleToPlayer - facingAngle;
+  diff = Math.atan2(Math.sin(diff), Math.cos(diff)); // wrap to [-π, π]
+
+  if (Math.abs(diff) > VISION_ANGLE) return false;
+
+  // Check walls/props between
+  if (!hasLineOfSight(g.x, g.y, player.x, player.y)) return false;
+
+  return true;
+}
+
+function updateGuards(dt) {
+  for (const g of guards) {
+    if (g.vertical) {
+      g.y += g.dir * g.speed * dt;
+      if (g.y < g.min) {
+        g.y = g.min;
+        g.dir = 1;
+        g.facing = "down";
+      } else if (g.y > g.max) {
+        g.y = g.max;
+        g.dir = -1;
+        g.facing = "up";
+      }
+    } else {
+      g.x += g.dir * g.speed * dt;
+      if (g.x < g.min) {
+        g.x = g.min;
+        g.dir = 1;
+        g.facing = "right";
+      } else if (g.x > g.max) {
+        g.x = g.max;
+        g.dir = -1;
+        g.facing = "left";
+      }
+    }
+
+    if (guardSeesPlayer(g)) {
+      triggerDetection();
+      // Once one sees you, no need to check others this frame
+      break;
+    }
+  }
+}
+
+// ===== MAIN LOOP =====
 function loop(timestamp) {
   if (!lastTime) lastTime = timestamp;
   const dt = timestamp - lastTime;
@@ -372,6 +528,9 @@ function update(dt) {
   checkKeycardPickup();
   checkDoorOpen();
 
+  // Guards (movement + detection)
+  updateGuards(dt);
+
   // Message timer
   if (messageTimer > 0) {
     messageTimer -= dt;
@@ -487,6 +646,65 @@ function drawKeycard(p) {
   ctx.fill();
 }
 
+// ===== GUARD DRAWING =====
+function drawGuards() {
+  for (const g of guards) {
+    const cx = g.x;
+    const cy = g.y - cameraY;
+
+    // Vision cone
+    const facingAngle = getFacingAngle(g.facing);
+    const startAngle = facingAngle - VISION_ANGLE;
+    const endAngle = facingAngle + VISION_ANGLE;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    const steps = 24;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const ang = startAngle + (endAngle - startAngle) * t;
+      const px = cx + Math.cos(ang) * VISION_RANGE;
+      const py = cy + Math.sin(ang) * VISION_RANGE;
+      ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fillStyle = "rgba(248,113,113,0.16)"; // soft red
+    ctx.fill();
+
+    // Floating robot body
+    const bob = Math.sin(globalTime / 400 + g.seed) * 3;
+
+    // Outer ring
+    ctx.beginPath();
+    ctx.fillStyle = "#1f2933";
+    ctx.arc(cx, cy + bob, 18, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Inner body
+    ctx.beginPath();
+    ctx.fillStyle = "#4b5563";
+    ctx.arc(cx, cy + bob, 14, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Eye
+    ctx.beginPath();
+    ctx.fillStyle = "#f97373";
+    ctx.arc(cx, cy + bob, 7, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.fillStyle = "#fee2e2";
+    ctx.arc(cx + 2, cy + bob - 2, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Little bottom thruster glow
+    ctx.fillStyle = "rgba(96,165,250,0.8)";
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + bob + 16, 8, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
 function drawProps() {
   for (const p of props) {
     if (p.type === "keycard" && p.collected) continue;
@@ -538,6 +756,9 @@ function draw() {
     }
   }
 
+  // Guards (vision cones + bodies)
+  drawGuards();
+
   // Props
   drawProps();
 
@@ -579,7 +800,6 @@ function draw() {
   }
 
   // Bottom hint depending on state
-  const keyProp = props.find(p => p.type === "keycard" && !p.collected);
   ctx.fillStyle = "rgba(15,23,42,0.75)";
   ctx.fillRect(0, HEIGHT - 40, WIDTH, 40);
   ctx.fillStyle = "#a7f3d0";
@@ -587,12 +807,14 @@ function draw() {
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
+  const keyProp = props.find(p => p.type === "keycard" && !p.collected);
+
   if (keyProp && !hasKeycard) {
     ctx.fillText("Find the keycard and press SPACE to pick it up.", WIDTH / 2, HEIGHT - 20);
   } else if (hasKeycard && !corridorDoorUnlocked) {
     ctx.fillText("Go to the corridor door and press SPACE to unlock it.", WIDTH / 2, HEIGHT - 20);
   } else if (corridorDoorUnlocked) {
-    ctx.fillText("Door open. Head to the upper offices.", WIDTH / 2, HEIGHT - 20);
+    ctx.fillText("Avoid the drones and reach the upper offices.", WIDTH / 2, HEIGHT - 20);
   }
 }
 
