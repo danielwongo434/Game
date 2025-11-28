@@ -2,15 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Daniel's Game Lab – Web Game Hub</title>
+  <title>Daniel's Game Arcade – Play Fun Web Games</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root {
-      --bg: #020617;
+      --bg: #0f172a;
+      --bg-soft: #1d2840;
       --card: #020617;
       --border: #1f2937;
       --accent: #22c55e;
-      --accent-soft: #22c55e22;
+      --accent2: #38bdf8;
+      --accent3: #f97316;
       --text-main: #e5e7eb;
       --text-muted: #9ca3af;
     }
@@ -22,14 +24,17 @@
     body {
       margin: 0;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: radial-gradient(circle at top, #22c55e22 0, #020617 50%, #000 100%);
+      background: radial-gradient(circle at top, #22c55e33 0, #0b1120 40%, #020617 100%);
       color: var(--text-main);
     }
 
     header {
-      padding: 24px 16px 14px;
+      padding: 16px 16px 10px;
       border-bottom: 1px solid #111827;
-      background: linear-gradient(135deg, #020617 0, #020617 60%, #0b1120 100%);
+      background: linear-gradient(135deg, #0f172a 0, #020617 60%, #0b1120 100%);
+      position: sticky;
+      top: 0;
+      z-index: 10;
     }
 
     .wrapper {
@@ -37,7 +42,7 @@
       margin: 0 auto;
     }
 
-    .logo-row {
+    .top-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -46,43 +51,97 @@
     }
 
     .logo {
-      font-weight: 700;
-      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 800;
+      font-size: 1.1rem;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      color: #a5b4fc;
+      color: #facc15;
     }
 
     .logo span {
-      color: var(--accent);
+      color: var(--accent2);
     }
 
-    .badge {
-      display: inline-block;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.16em;
-      padding: 3px 9px;
+    .logo-icon {
+      width: 28px;
+      height: 28px;
       border-radius: 999px;
-      border: 1px solid var(--accent);
-      color: var(--accent);
-      background: #020617;
+      background: radial-gradient(circle at 30% 20%, #f97316, #22c55e 60%, #0ea5e9 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+    }
+
+    nav {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    nav a {
+      font-size: 0.85rem;
+      text-decoration: none;
+      color: var(--text-muted);
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+    }
+
+    nav a:hover {
+      color: #ffffff;
+      border-color: #4b5563;
+      background: rgba(15,23,42,0.7);
+    }
+
+    .hero {
+      padding: 10px 0 16px;
+    }
+
+    .tagline {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid #22c55e55;
+      background: rgba(15,23,42,0.8);
+      color: var(--text-muted);
+    }
+
+    .tag-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 10px #22c55e;
     }
 
     h1 {
-      margin: 14px 0 6px;
+      margin: 10px 0 4px;
       font-size: clamp(2rem, 4vw, 2.6rem);
+    }
+
+    .hero-accent {
+      background: linear-gradient(90deg, #22c55e, #38bdf8, #f97316);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
     }
 
     .subtitle {
       margin: 0;
-      max-width: 640px;
+      max-width: 600px;
       font-size: 0.95rem;
       color: var(--text-muted);
     }
 
     .hero-buttons {
-      margin-top: 16px;
+      margin-top: 14px;
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
@@ -95,81 +154,105 @@
       padding: 8px 16px;
       border-radius: 999px;
       font-size: 0.9rem;
-      font-weight: 500;
+      font-weight: 600;
       text-decoration: none;
-      border: 1px solid var(--accent);
-      color: var(--accent);
-      background: transparent;
+      border: 1px solid #22c55e;
+      color: #020617;
+      background: #22c55e;
       cursor: pointer;
-      transition: background 0.2s ease, color 0.2s ease, transform 0.1s ease,
-        box-shadow 0.15s ease;
+      transition: background 0.2s ease, transform 0.1s ease, box-shadow 0.15s ease;
     }
 
-    .btn.primary {
-      background: var(--accent);
-      color: #020617;
+    .btn.secondary {
+      background: transparent;
+      color: var(--text-main);
+      border-color: #4b5563;
     }
 
     .btn:hover {
       transform: translateY(-1px);
-      box-shadow: 0 8px 20px rgba(0,0,0,0.5);
-      background: var(--accent);
-      color: #020617;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.6);
     }
 
     main {
       max-width: 1100px;
       margin: 0 auto;
-      padding: 16px;
+      padding: 12px 16px 24px;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
     }
 
     .section-title {
-      font-size: 1.1rem;
-      margin: 16px 0 6px;
+      font-size: 1.2rem;
     }
 
     .section-sub {
-      margin: 0 0 12px;
-      font-size: 0.9rem;
+      margin: 0;
+      font-size: 0.85rem;
       color: var(--text-muted);
     }
 
     .game-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 14px;
     }
 
     .game-card {
-      background: var(--card);
-      border-radius: 14px;
+      background: #020617;
+      border-radius: 16px;
       border: 1px solid var(--border);
       overflow: hidden;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.7);
       display: flex;
       flex-direction: column;
-      transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.9);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+
+    .game-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 20px 40px rgba(0,0,0,1);
+      border-color: #22c55e55;
     }
 
     .game-thumb {
       height: 140px;
-      background: radial-gradient(circle at top, var(--accent-soft), #020617 60%);
+      background: radial-gradient(circle at 20% 10%, #facc15, transparent 40%),
+                  radial-gradient(circle at 80% 80%, #22c55e, transparent 45%),
+                  radial-gradient(circle at 30% 90%, #38bdf8, transparent 40%),
+                  #020617;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 2.4rem;
-      color: #22c55e;
+      font-size: 2.3rem;
+    }
+
+    .game-thumb span {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(15,23,42,0.8);
+      border: 1px solid rgba(148,163,184,0.6);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
     }
 
     .game-body {
       padding: 12px;
-      border-top: 1px solid #111827;
       font-size: 0.9rem;
     }
 
     .game-title {
-      font-weight: 600;
-      margin-bottom: 2px;
+      font-weight: 700;
+      margin-bottom: 4px;
     }
 
     .game-tag {
@@ -192,26 +275,43 @@
     }
 
     .pill {
-      padding: 2px 8px;
+      padding: 3px 8px;
       border-radius: 999px;
       border: 1px solid #374151;
       color: #9ca3af;
+      background: rgba(15,23,42,0.8);
     }
 
-    .play-link {
-      font-size: 0.84rem;
+    .play-btn {
+      font-size: 0.85rem;
       text-decoration: none;
-      color: var(--accent);
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: #22c55e;
+      color: #020617;
+      font-weight: 600;
+      border: 1px solid #16a34a;
+      transition: background 0.18s ease, transform 0.1s ease;
     }
 
-    .play-link:hover {
-      text-decoration: underline;
+    .play-btn:hover {
+      background: #4ade80;
+      transform: translateY(-1px);
     }
 
-    .game-card:hover {
-      transform: translateY(-6px);
-      box-shadow: 0 18px 40px rgba(0,0,0,0.9);
-      border-color: var(--accent-soft);
+    .info-strip {
+      margin-top: 18px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px dashed #334155;
+      background: radial-gradient(circle at left, rgba(34,197,94,0.25), transparent 55%),
+                  rgba(15,23,42,0.95);
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .info-strip strong {
+      color: #e5e7eb;
     }
 
     footer {
@@ -221,10 +321,7 @@
       color: #6b7280;
     }
 
-    @media (max-width: 600px) {
-      header {
-        padding-bottom: 18px;
-      }
+    @media (max-width: 640px) {
       .hero-buttons {
         flex-direction: column;
         align-items: flex-start;
@@ -235,131 +332,154 @@
 <body>
   <header>
     <div class="wrapper">
-      <div class="logo-row">
-        <div class="logo">DANIEL'S <span>GAME LAB</span></div>
-        <span class="badge">Indie Web Games</span>
+      <div class="top-row">
+        <div class="logo">
+          <div class="logo-icon">🎮</div>
+          DANIEL'S <span>GAME ARCADE</span>
+        </div>
+        <nav>
+          <a href="#games">Games</a>
+          <a href="#new">New</a>
+          <a href="#about">About</a>
+        </nav>
       </div>
-      <h1>One Developer. Twenty Games.</h1>
-      <p class="subtitle">
-        A growing collection of small web games built from scratch. This hub will eventually
-        link out to every experiment, prototype, and polished release.
-      </p>
 
-      <div class="hero-buttons">
-        <a href="#games" class="btn primary">Browse Games</a>
-        <a href="#about" class="btn">Goal: $10K/mo Experiment</a>
+      <div class="hero">
+        <div class="tagline">
+          <span class="tag-dot"></span>
+          Play small, fast, browser games – no install needed.
+        </div>
+        <h1>
+          Tap, click, and play in<br />
+          <span class="hero-accent">Daniel's Game Arcade</span>
+        </h1>
+        <p class="subtitle">
+          A growing collection of simple, fun web games you can play on your phone, tablet,
+          or computer. Just tap a game and start playing.
+        </p>
+
+        <div class="hero-buttons">
+          <a href="#games" class="btn">Play Games</a>
+          <a href="#about" class="btn secondary">What is this place?</a>
+        </div>
       </div>
     </div>
   </header>
 
   <main>
     <section id="games">
-      <h2 class="section-title">Games Library</h2>
-      <p class="section-sub">
-        These are placeholders for now. As you build each game, replace the links with real URLs.
-        Each card can point to a GitHub Pages game, itch.io page, or any hosted build.
-      </p>
+      <div class="section-header">
+        <h2 class="section-title">Featured Games</h2>
+        <p class="section-sub">These are placeholders. Each card will link to a real game.</p>
+      </div>
 
       <div class="game-grid">
         <!-- Game 1 -->
         <article class="game-card">
-          <div class="game-thumb">1</div>
+          <div class="game-thumb">
+            <span>Arcade</span>
+          </div>
           <div class="game-body">
             <div class="game-title">Cyber Dodger</div>
-            <div class="game-tag">Arcade · Keyboard</div>
+            <div class="game-tag">Fast reflex · Keyboard or touch</div>
             <p class="game-text">
-              Dodge incoming obstacles in a neon tunnel. Fast reactions, simple controls,
-              infinite difficulty scaling.
+              Move your player left and right to dodge glowing blocks in a neon tunnel. It keeps getting faster!
             </p>
             <div class="game-footer">
-              <span class="pill">Status: Not yet built</span>
-              <!-- Replace # with a real link later -->
-              <a href="#" class="play-link">Play →</a>
+              <span class="pill">Coming soon</span>
+              <!-- Change # to actual game link later -->
+              <a href="#" class="play-btn">Play</a>
             </div>
           </div>
         </article>
 
         <!-- Game 2 -->
         <article class="game-card">
-          <div class="game-thumb">2</div>
+          <div class="game-thumb">
+            <span>Puzzle</span>
+          </div>
           <div class="game-body">
-            <div class="game-title">Bird Migration Clicker</div>
-            <div class="game-tag">Clicker · Idle</div>
+            <div class="game-title">Lab Escape</div>
+            <div class="game-tag">Maze · Swipe or keys</div>
             <p class="game-text">
-              Guide a flock across the map, upgrading routes and avoiding storms. Idle
-              mechanics with simple visuals.
+              Find the exit in a tiny lab maze while avoiding lasers and locked doors.
+              Short levels, quick restarts.
             </p>
             <div class="game-footer">
-              <span class="pill">Status: Not yet built</span>
-              <a href="#" class="play-link">Play →</a>
+              <span class="pill">Coming soon</span>
+              <a href="#" class="play-btn">Play</a>
             </div>
           </div>
         </article>
 
         <!-- Game 3 -->
         <article class="game-card">
-          <div class="game-thumb">3</div>
+          <div class="game-thumb">
+            <span>Clicker</span>
+          </div>
           <div class="game-body">
-            <div class="game-title">Lab Escape</div>
-            <div class="game-tag">Puzzle · Top-down</div>
+            <div class="game-title">Bird Migration Clicker</div>
+            <div class="game-tag">Idle · Tap to upgrade</div>
             <p class="game-text">
-              Move through a small lab maze, avoiding hazards and unlocking doors in the
-              fewest moves possible.
+              Tap to send flocks on migration, earn points, and unlock faster routes and special power-ups.
             </p>
             <div class="game-footer">
-              <span class="pill">Status: Not yet built</span>
-              <a href="#" class="play-link">Play →</a>
+              <span class="pill">Coming soon</span>
+              <a href="#" class="play-btn">Play</a>
             </div>
           </div>
         </article>
 
         <!-- Game 4 -->
         <article class="game-card">
-          <div class="game-thumb">4</div>
+          <div class="game-thumb">
+            <span>Runner</span>
+          </div>
           <div class="game-body">
             <div class="game-title">Matrix Runner</div>
-            <div class="game-tag">Endless Runner</div>
+            <div class="game-tag">Endless · One-button</div>
             <p class="game-text">
-              Dash across a scrolling code city, jumping over glitches and sliding under
-              firewalls.
+              Jump over gaps and glitches in a scrolling code city. See how long you can survive.
             </p>
             <div class="game-footer">
-              <span class="pill">Status: Not yet built</span>
-              <a href="#" class="play-link">Play →</a>
+              <span class="pill">Coming soon</span>
+              <a href="#" class="play-btn">Play</a>
             </div>
           </div>
         </article>
 
         <!-- Game 5 -->
         <article class="game-card">
-          <div class="game-thumb">5</div>
+          <div class="game-thumb">
+            <span>Casual</span>
+          </div>
           <div class="game-body">
             <div class="game-title">Orbit Tap</div>
-            <div class="game-tag">Casual · Mobile-friendly</div>
+            <div class="game-tag">Timing · Mobile-friendly</div>
             <p class="game-text">
-              Tap to keep a satellite in stable orbit while avoiding random debris. Simple,
-              timing-based gameplay.
+              Tap to keep a tiny satellite in orbit while dodging random space debris. Easy to learn, hard to master.
             </p>
             <div class="game-footer">
-              <span class="pill">Status: Not yet built</span>
-              <a href="#" class="play-link">Play →</a>
+              <span class="pill">Coming soon</span>
+              <a href="#" class="play-btn">Play</a>
             </div>
           </div>
         </article>
 
         <!-- Game 6 -->
         <article class="game-card">
-          <div class="game-thumb">6</div>
+          <div class="game-thumb">
+            <span>Mini Game</span>
+          </div>
           <div class="game-body">
-            <div class="game-title">Chem Click Combo</div>
-            <div class="game-tag">Clicker · Education</div>
+            <div class="game-title">Tap Combo</div>
+            <div class="game-tag">Reflex · Combo chains</div>
             <p class="game-text">
-              Combine elements or reactions to unlock new upgrades. Lightly educational,
-              inspired by your chemistry background.
+              Tap the right color blocks before they hit the bottom. Chain combos for huge scores.
             </p>
             <div class="game-footer">
-              <span class="pill">Status: Not yet built</span>
-              <a href="#" class="play-link">Play →</a>
+              <span class="pill">Coming soon</span>
+              <a href="#" class="play-btn">Play</a>
             </div>
           </div>
         </article>
@@ -367,21 +487,25 @@
     </section>
 
     <section id="about">
-      <h2 class="section-title">The $10K/mo Experiment</h2>
-      <p class="section-sub">
-        This site tracks a simple experiment: build many small web games, learn fast,
-        and see how far a solo dev can go in a year. There are no guarantees—but every
-        finished game is progress in code, design, and shipping.
-      </p>
-      <p class="section-sub">
-        As games go live, this hub will link to real builds with analytics and monetization
-        experiments (ads, donations, or premium versions).
-      </p>
+      <div class="section-header" style="margin-top: 20px;">
+        <h2 class="section-title">About Daniel's Game Arcade</h2>
+      </div>
+      <div class="info-strip">
+        <p>
+          <strong>Daniel's Game Arcade</strong> is a home for small web games built one by one.
+          Every game is designed to load fast, run in your browser, and be easy to pick up
+          and play for a few minutes at a time.
+        </p>
+        <p>
+          As more games are created, this page will turn into a big library where you can
+          scroll, tap a game, and start playing instantly.
+        </p>
+      </div>
     </section>
   </main>
 
   <footer>
-    © <span id="year"></span> Daniel's Game Lab • Built with HTML, CSS, and JavaScript
+    © <span id="year"></span> Daniel's Game Arcade • Play in your browser
   </footer>
 
   <script>
