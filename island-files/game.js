@@ -12,7 +12,7 @@ const WORLD_ROWS = 18; // 2 x 9 rows (two "floors" stacked)
 const WORLD_HEIGHT = WORLD_ROWS * TILE_SIZE;
 
 // TILE TYPES
-// 0 = floor, 1 = wall, 2 = locked corridor door
+// 0 = floor, 1 = wall, 2 = corridor door (closed)
 let map = [];
 
 // Build solid walls everywhere
@@ -71,13 +71,14 @@ buildCluster(0);
 buildCluster(9);
 
 // ==== CORRIDOR DOOR BETWEEN CLUSTERS ====
-// Door between clusters in corridor (row 8)
+// Row 8 = barrier row, with a single corridor door at col 7
 for (let x = 0; x < COLS; x++) {
   map[8][x] = 1; // wall row between clusters
 }
-map[8][7] = 2; // locked corridor door tile
+map[8][7] = 2; // closed corridor door tile
 
-let corridorDoorUnlocked = false;
+let corridorDoorUnlocked = false; // true when door actually opens
+let hasKeycard = false;           // true once keycard picked up
 
 // ==== OFFICE PROPS ====
 const props = [];
@@ -155,7 +156,7 @@ addOfficesForCluster(9);  // bottom 4 rooms
 
 // ==== KEYCARD (OBJECTIVE) ====
 // Put a keycard in the top-right room of the bottom cluster
-const keyTile = tileCenter(12, 11); // baseRow 9 -> 9+2 = 11 (TR room)
+const keyTile = tileCenter(12, 11); // baseRow 9 -> 9+2 = 11 (TR room center)
 props.push({
   type: "keycard",
   x: keyTile.x - 15,
@@ -214,7 +215,7 @@ const keys = {
   d: false
 };
 
-let spacePressed = false; // NEW: track spacebar
+let spacePressed = false;
 
 window.addEventListener("keydown", (e) => {
   if (e.key in keys) keys[e.key] = true;
@@ -258,7 +259,7 @@ function canMoveTo(nx, ny) {
 
   const tile = map[row][col];
   if (tile === 1) return false;                   // wall
-  if (tile === 2 && !corridorDoorUnlocked) return false; // locked door
+  if (tile === 2 && !corridorDoorUnlocked) return false; // closed corridor door
 
   // Props collision
   for (const p of props) {
@@ -271,9 +272,9 @@ function canMoveTo(nx, ny) {
   return true;
 }
 
-// NEW: press-space + proximity pickup
+// SPACE + proximity → pick up keycard
 function checkKeycardPickup() {
-  if (!spacePressed) return;
+  if (!spacePressed || hasKeycard) return;
 
   for (const p of props) {
     if (p.type !== "keycard" || p.collected) continue;
@@ -284,14 +285,35 @@ function checkKeycardPickup() {
     const dy = player.y - centerY;
     const dist = Math.hypot(dx, dy);
 
-    const pickupRadius = 70; // how close you must be
+    const pickupRadius = 70;
 
     if (dist < pickupRadius) {
       p.collected = true;
-      corridorDoorUnlocked = true;
-      map[8][7] = 0; // open corridor door
-      showMessage("Keycard acquired. Press ↑ to reach the upper offices.", 3500);
+      hasKeycard = true;
+      showMessage("Keycard acquired. Find the corridor door.", 3500);
     }
+  }
+}
+
+// SPACE + proximity to door → unlock door (if you have keycard)
+function checkDoorOpen() {
+  if (!spacePressed || corridorDoorUnlocked || !hasKeycard) return;
+
+  const doorCol = 7;
+  const doorRow = 8;
+  const doorCenterX = (doorCol + 0.5) * TILE_SIZE;
+  const doorCenterY = (doorRow + 0.5) * TILE_SIZE;
+
+  const dx = player.x - doorCenterX;
+  const dy = player.y - doorCenterY;
+  const dist = Math.hypot(dx, dy);
+
+  const doorRadius = 70;
+
+  if (dist < doorRadius) {
+    corridorDoorUnlocked = true;
+    map[8][7] = 0; // open door to floor
+    showMessage("Door unlocked. Head to the upper offices.", 3500);
   }
 }
 
@@ -346,8 +368,9 @@ function update(dt) {
     idleTime += dt;
   }
 
-  // Keycard pickup (space + near)
+  // Interactions
   checkKeycardPickup();
+  checkDoorOpen();
 
   // Message timer
   if (messageTimer > 0) {
@@ -432,7 +455,7 @@ function drawPlant(p) {
   ctx.fillRect(p.x + p.w / 2 - 4, p.y - cameraY + p.h - 6, 8, 6);
 }
 
-// NEW: keycard + green animated arrow
+// Keycard + upside-down green arrow
 function drawKeycard(p) {
   if (p.collected) return;
 
@@ -447,18 +470,19 @@ function drawKeycard(p) {
   ctx.fillStyle = "#1f2937";
   ctx.fillRect(p.x + 4, y + 6, p.w - 8, 4); // stripe
 
-  // Pulsing green arrow above it
+  // Upside-down pulsing green arrow pointing at the card
   const cx = p.x + p.w / 2;
-  const arrowBaseY = y - 12;
+  const tipY = y - 4;          // tip just above the card
+  const baseY = tipY - 18;     // base higher up
   const pulse = 0.5 + 0.5 * Math.sin(globalTime / 300);
-  const alpha = 0.3 + 0.7 * pulse; // fade in/out
+  const alpha = 0.3 + 0.7 * pulse;
 
-  ctx.fillStyle = `rgba(34,197,94,${alpha})`; // bright green w/ alpha
+  ctx.fillStyle = `rgba(34,197,94,${alpha})`; // bright green
 
   ctx.beginPath();
-  ctx.moveTo(cx, arrowBaseY - 18);      // tip
-  ctx.lineTo(cx - 10, arrowBaseY);      // bottom left
-  ctx.lineTo(cx + 10, arrowBaseY);      // bottom right
+  ctx.moveTo(cx, tipY);        // tip near card
+  ctx.lineTo(cx - 10, baseY);  // upper left
+  ctx.lineTo(cx + 10, baseY);  // upper right
   ctx.closePath();
   ctx.fill();
 }
@@ -499,7 +523,7 @@ function draw() {
         ctx.lineWidth = 2;
         ctx.strokeRect(px + 1, py + 1, TILE_SIZE - 2, TILE_SIZE - 2);
       } else if (tile === 2) {
-        // locked corridor door
+        // corridor door (locked or unlocked visual)
         ctx.fillStyle = "#020617";
         ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
         ctx.fillStyle = corridorDoorUnlocked ? "#16a34a" : "#9ca3af";
@@ -554,16 +578,21 @@ function draw() {
     ctx.fillText(messageText, WIDTH / 2, 20);
   }
 
-  // Optional hint when key not collected
+  // Bottom hint depending on state
   const keyProp = props.find(p => p.type === "keycard" && !p.collected);
-  if (keyProp) {
-    ctx.fillStyle = "rgba(15,23,42,0.75)";
-    ctx.fillRect(0, HEIGHT - 40, WIDTH, 40);
-    ctx.fillStyle = "#a7f3d0";
-    ctx.font = "16px monospace";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
+  ctx.fillStyle = "rgba(15,23,42,0.75)";
+  ctx.fillRect(0, HEIGHT - 40, WIDTH, 40);
+  ctx.fillStyle = "#a7f3d0";
+  ctx.font = "16px monospace";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  if (keyProp && !hasKeycard) {
     ctx.fillText("Find the keycard and press SPACE to pick it up.", WIDTH / 2, HEIGHT - 20);
+  } else if (hasKeycard && !corridorDoorUnlocked) {
+    ctx.fillText("Go to the corridor door and press SPACE to unlock it.", WIDTH / 2, HEIGHT - 20);
+  } else if (corridorDoorUnlocked) {
+    ctx.fillText("Door open. Head to the upper offices.", WIDTH / 2, HEIGHT - 20);
   }
 }
 
