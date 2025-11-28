@@ -4,15 +4,14 @@ const ctx = canvas.getContext("2d");
 const WIDTH = canvas.width;
 const HEIGHT = canvas.height;
 
-// ==== TILE MAP SETUP ====
-const TILE_SIZE = 60; // 16 x 9 grid (960x540)
+const TILE_SIZE = 60; // 16 x 9 grid
 const COLS = Math.floor(WIDTH / TILE_SIZE);  // 16
 const ROWS = Math.floor(HEIGHT / TILE_SIZE); // 9
 
 // 0 = floor, 1 = wall
 let map = [];
 
-// Start with all walls
+// Build solid walls everywhere
 for (let y = 0; y < ROWS; y++) {
   const row = [];
   for (let x = 0; x < COLS; x++) {
@@ -32,45 +31,124 @@ function carveRect(x1, y1, x2, y2) {
   }
 }
 
-// ---- Layout design (Zelda-style 4 rooms + corridor) ----
+// ---- Layout: 4 rooms + corridor ----
 // Perimeter walls stay as 1 (we don't carve on row 0, row 8, col 0, col 15)
 
 // Central corridor (2 tiles wide) from row 1 to row 7
-// Columns 7 and 8 are open corridor
+// Columns 7 and 8 are the corridor
 carveRect(7, 1, 8, 7);
 
 // Top-left room floor: cols 1–5, rows 1–3
 carveRect(1, 1, 5, 3);
-
 // Top-right room floor: cols 10–14, rows 1–3
 carveRect(10, 1, 14, 3);
-
 // Bottom-left room floor: cols 1–5, rows 5–7
 carveRect(1, 5, 5, 7);
-
 // Bottom-right room floor: cols 10–14, rows 5–7
 carveRect(10, 5, 14, 7);
 
-// Row 4 is our horizontal wall between top and bottom rooms.
-// We leave it as walls everywhere EXCEPT corridor, which is already carved.
+// Doors (one tile wide)
+// Rooms → corridor
+map[2][6] = 0; // TL → corridor
+map[6][6] = 0; // BL → corridor
+map[2][9] = 0; // TR → corridor
+map[6][9] = 0; // BR → corridor
 
-// ---- Doors (all ONE TILE wide) ----
+// Between top/bottom rooms
+map[4][3] = 0;   // left side TL ↔ BL
+map[4][12] = 0;  // right side TR ↔ BR
 
-// Rooms → corridor:
-// TL → corridor (through wall at col 6)
-map[2][6] = 0;
-// BL → corridor
-map[6][6] = 0;
-// TR → corridor (through wall at col 9)
-map[2][9] = 0;
-// BR → corridor
-map[6][9] = 0;
+// ==== OFFICE PROPS ====
+// type: "desk", "monitor", "tower", "cabinet", "chair", "plant"
+// solid: blocks movement or not
+const props = [];
 
-// Between top and bottom rooms (vertical doors in horizontal wall row 4):
-// Left side: TL ↔ BL (in the wall between them)
-map[4][3] = 0; // roughly center of left rooms
-// Right side: TR ↔ BR
-map[4][12] = 0; // roughly center of right rooms
+// Utility to add office layout around a center point (cx, cy)
+function addOffice(cx, cy) {
+  // Desk
+  props.push({
+    type: "desk",
+    x: cx - 45,
+    y: cy - 10,
+    w: 90,
+    h: 32,
+    solid: true
+  });
+
+  // Chair (below desk)
+  props.push({
+    type: "chair",
+    x: cx - 18,
+    y: cy + 22,
+    w: 36,
+    h: 20,
+    solid: false
+  });
+
+  // Monitor on desk
+  props.push({
+    type: "monitor",
+    x: cx - 26,
+    y: cy - 38,
+    w: 52,
+    h: 26,
+    solid: false,
+    seed: Math.random() * 10
+  });
+
+  // Computer tower (to right of desk)
+  props.push({
+    type: "tower",
+    x: cx + 50,
+    y: cy - 2,
+    w: 18,
+    h: 32,
+    solid: true
+  });
+
+  // Filing cabinet (behind desk, a bit to left)
+  props.push({
+    type: "cabinet",
+    x: cx - 80,
+    y: cy - 40,
+    w: 28,
+    h: 42,
+    solid: true
+  });
+
+  // Plant (for flavor)
+  props.push({
+    type: "plant",
+    x: cx + 70,
+    y: cy - 45,
+    w: 22,
+    h: 30,
+    solid: false
+  });
+}
+
+// Room centers (approx in pixels)
+function tileCenter(cx, cy) {
+  return {
+    x: (cx + 0.5) * TILE_SIZE,
+    y: (cy + 0.5) * TILE_SIZE
+  };
+}
+
+// TL room center: between cols 1–5, rows 1–3
+let cTL = tileCenter(3, 2);
+// TR room
+let cTR = tileCenter(12, 2);
+// BL room
+let cBL = tileCenter(3, 6);
+// BR room
+let cBR = tileCenter(12, 6);
+
+// Add office layout to each room
+addOffice(cTL.x, cTL.y);
+addOffice(cTR.x, cTR.y);
+addOffice(cBL.x, cBL.y);
+addOffice(cBR.x, cBR.y);
 
 // ==== PLAYER SETUP ====
 const player = {
@@ -79,7 +157,7 @@ const player = {
   speed: 0.18, // pixels per ms
   dir: "up", // "up" | "down" | "left" | "right"
   moving: false,
-  frame: 1,       // middle frame for idle
+  frame: 1,
   frameTime: 0
 };
 
@@ -117,12 +195,15 @@ window.addEventListener("keyup", (e) => {
 });
 
 let lastTime = 0;
-let idleTime = 0; // for breathing animation
+let idleTime = 0;
+let globalTime = 0; // for monitor flicker
 
 function loop(timestamp) {
   if (!lastTime) lastTime = timestamp;
   const dt = timestamp - lastTime;
   lastTime = timestamp;
+
+  globalTime += dt;
 
   update(dt);
   draw();
@@ -131,15 +212,31 @@ function loop(timestamp) {
 }
 
 function canMoveTo(nx, ny) {
-  // Approximate player as a point for simple collision
+  // Tile collision
   const col = Math.floor(nx / TILE_SIZE);
   const row = Math.floor(ny / TILE_SIZE);
 
   if (row < 0 || row >= ROWS || col < 0 || col >= COLS) {
     return false;
   }
+  if (map[row][col] === 1) {
+    return false;
+  }
 
-  return map[row][col] === 0;
+  // Prop collision (for solid furniture)
+  for (const p of props) {
+    if (!p.solid) continue;
+    if (
+      nx > p.x &&
+      nx < p.x + p.w &&
+      ny > p.y &&
+      ny < p.y + p.h
+    ) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function update(dt) {
@@ -161,7 +258,6 @@ function update(dt) {
     const stepX = dx * player.speed * dt;
     const stepY = dy * player.speed * dt;
 
-    // Try moving X, then Y (simple collision resolution)
     let newX = player.x + stepX;
     let newY = player.y;
 
@@ -177,7 +273,7 @@ function update(dt) {
     player.x = newX;
     player.y = newY;
 
-    // pick facing direction
+    // direction
     if (Math.abs(dx) > Math.abs(dy)) {
       player.dir = dx > 0 ? "right" : "left";
     } else {
@@ -188,22 +284,121 @@ function update(dt) {
     player.frameTime += dt;
     if (player.frameTime >= ANIM_SPEED) {
       player.frameTime = 0;
-      player.frame = (player.frame + 1) % SPRITE_COLS; // 0,1,2
+      player.frame = (player.frame + 1) % SPRITE_COLS;
     }
 
-    idleTime = 0; // reset idle timer while moving
+    idleTime = 0;
   } else {
-    // idle: middle frame + breathing timer
-    player.frame = 1;
+    player.frame = 1; // idle frame
     player.frameTime = 0;
     idleTime += dt;
+  }
+}
+
+function drawDesk(p) {
+  // Top surface
+  ctx.fillStyle = "#8b4a2f";
+  ctx.fillRect(p.x, p.y, p.w, p.h);
+
+  // Edge highlight
+  ctx.fillStyle = "#b96b45";
+  ctx.fillRect(p.x, p.y, p.w, 4);
+
+  // Legs
+  const legW = 8;
+  const legH = 18;
+  ctx.fillStyle = "#5b301f";
+  ctx.fillRect(p.x + 6, p.y + p.h, legW, legH);
+  ctx.fillRect(p.x + p.w - 6 - legW, p.y + p.h, legW, legH);
+}
+
+function drawChair(p) {
+  // Seat
+  ctx.fillStyle = "#374151";
+  ctx.fillRect(p.x, p.y, p.w, p.h);
+
+  // Back
+  ctx.fillStyle = "#4b5563";
+  ctx.fillRect(p.x, p.y - 10, p.w, 10);
+}
+
+function drawMonitor(p) {
+  // Body
+  ctx.fillStyle = "#111827";
+  ctx.fillRect(p.x, p.y, p.w, p.h);
+
+  // Screen flicker
+  const t = globalTime;
+  const flick = 0.5 + 0.5 * Math.sin(t / 120 + (p.seed || 0));
+  const baseG = 180;
+  const g = Math.floor(baseG + flick * 60); // between 180–240
+  ctx.fillStyle = `rgb(40, ${g}, ${g + 10})`;
+  ctx.fillRect(p.x + 4, p.y + 4, p.w - 8, p.h - 10);
+
+  // Stand
+  ctx.fillStyle = "#4b5563";
+  ctx.fillRect(p.x + p.w / 2 - 6, p.y + p.h, 12, 6);
+}
+
+function drawTower(p) {
+  ctx.fillStyle = "#1f2933";
+  ctx.fillRect(p.x, p.y, p.w, p.h);
+  ctx.fillStyle = "#4b5563";
+  ctx.fillRect(p.x + 3, p.y + 4, p.w - 6, p.h - 8);
+  ctx.fillStyle = "#10b981";
+  ctx.fillRect(p.x + p.w - 6, p.y + p.h - 10, 4, 6);
+}
+
+function drawCabinet(p) {
+  ctx.fillStyle = "#8b4a2f";
+  ctx.fillRect(p.x, p.y, p.w, p.h);
+  ctx.fillStyle = "#b96b45";
+  ctx.fillRect(p.x + 3, p.y + 5, p.w - 6, 4);
+  ctx.fillRect(p.x + 3, p.y + p.h / 2, p.w - 6, 4);
+  ctx.fillStyle = "#e5e7eb";
+  ctx.fillRect(p.x + p.w / 2 - 2, p.y + 6, 4, 2);
+  ctx.fillRect(p.x + p.w / 2 - 2, p.y + p.h / 2 + 1, 4, 2);
+}
+
+function drawPlant(p) {
+  ctx.fillStyle = "#166534";
+  ctx.beginPath();
+  ctx.ellipse(p.x + p.w / 2, p.y + p.h / 2, p.w / 2, p.h / 2, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#78350f";
+  ctx.fillRect(p.x + p.w / 2 - 4, p.y + p.h - 6, 8, 6);
+}
+
+function drawProps() {
+  for (const p of props) {
+    switch (p.type) {
+      case "desk":
+        drawDesk(p);
+        break;
+      case "chair":
+        drawChair(p);
+        break;
+      case "monitor":
+        drawMonitor(p);
+        break;
+      case "tower":
+        drawTower(p);
+        break;
+      case "cabinet":
+        drawCabinet(p);
+        break;
+      case "plant":
+        drawPlant(p);
+        break;
+    }
   }
 }
 
 function draw() {
   ctx.clearRect(0, 0, WIDTH, HEIGHT);
 
-  // Draw floor + walls
+  // Draw tiles
   for (let y = 0; y < ROWS; y++) {
     for (let x = 0; x < COLS; x++) {
       const tile = map[y][x];
@@ -214,7 +409,6 @@ function draw() {
         // wall
         ctx.fillStyle = "#111827";
         ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-
         ctx.strokeStyle = "#1f2937";
         ctx.lineWidth = 2;
         ctx.strokeRect(px + 1, py + 1, TILE_SIZE - 2, TILE_SIZE - 2);
@@ -226,24 +420,24 @@ function draw() {
     }
   }
 
+  // Draw office furniture
+  drawProps();
+
   // Draw player
   const px = player.x;
   const py = player.y;
-
   const idleOffset = player.moving ? 0 : Math.sin(idleTime / 400) * 2;
 
   if (sprite.complete && sprite.naturalWidth) {
-    // Map direction to row index in the sprite sheet
     const dirIndex =
-      player.dir === "right" ? 1 :   // row 1 = facing right
-      player.dir === "left"  ? 0 :   // row 0 = facing left
-      player.dir === "down"  ? 2 :   // row 2 = facing down
-      3;                             // row 3 = facing up
+      player.dir === "right" ? 1 :
+      player.dir === "left"  ? 0 :
+      player.dir === "down"  ? 2 : 3;
 
     const sx = player.frame * FRAME_W;
     const sy = dirIndex * FRAME_H;
 
-    const drawSize = 64; // on-screen size
+    const drawSize = 64;
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(
       sprite,
@@ -254,7 +448,6 @@ function draw() {
       drawSize
     );
   } else {
-    // fallback placeholder
     ctx.fillStyle = "#9ca3af";
     ctx.beginPath();
     ctx.arc(px, py, 10, 0, Math.PI * 2);
