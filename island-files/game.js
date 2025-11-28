@@ -55,20 +55,26 @@ carveRect(1, 5, 6, 7);
 // Carve bottom-right room
 carveRect(9, 5, 14, 7);
 
-// Doors from rooms to corridor
-// Top-left → corridor
+// ==== DOORS (ALL ONE TILE WIDE) ====
+
+// Doors from rooms → corridor
+// Top-left room → corridor
 map[2][7] = 0;
-// Bottom-left → corridor
+
+// Bottom-left room → corridor
 map[6][7] = 0;
-// Top-right → corridor
+
+// Top-right room → corridor
 map[2][8] = 0;
-// Bottom-right → corridor
+
+// Bottom-right room → corridor
 map[6][8] = 0;
 
-// Doors between top/bottom rooms (left and right side)
-// Left side R1 ↔ R3 (vertical door in the middle)
+// Doors between rooms (top ↔ bottom)
+// Left side: R1 ↔ R3
 map[4][3] = 0;
-// Right side R2 ↔ R4
+
+// Right side: R2 ↔ R4
 map[4][12] = 0;
 
 // ==== PLAYER SETUP ====
