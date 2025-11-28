@@ -49,6 +49,7 @@ window.addEventListener("keyup", (e) => {
 });
 
 let lastTime = 0;
+let idleTime = 0; // time spent idle for breathing animation
 
 function loop(timestamp) {
   if (!lastTime) lastTime = timestamp;
@@ -72,7 +73,7 @@ function update(dt) {
 
   player.moving = dx !== 0 || dy !== 0;
 
-  if (player.moving) {
+ if (player.moving) {
     const len = Math.hypot(dx, dy);
     dx /= len;
     dy /= len;
@@ -87,16 +88,19 @@ function update(dt) {
       player.dir = dy > 0 ? "down" : "up";
     }
 
-    // animate
+    // walking animation
     player.frameTime += dt;
     if (player.frameTime >= ANIM_SPEED) {
       player.frameTime = 0;
       player.frame = (player.frame + 1) % COLS; // 0,1,2
     }
+
+    idleTime = 0; // reset idle timer while moving
   } else {
-    // idle: use middle frame (1)
+    // idle: middle frame + breathing timer
     player.frame = 1;
     player.frameTime = 0;
+    idleTime += dt;
   }
 
   const r = 12;
@@ -118,6 +122,7 @@ function draw() {
 
   const px = player.x;
   const py = player.y;
+  const idleOffset = player.moving? 0 : Math.sin(idleTime / 400) * 2;
 
   if (sprite.complete && sprite.naturalWidth) {
     // map direction to row index in the sprite sheet
@@ -136,7 +141,7 @@ function draw() {
     ctx.drawImage(
       sprite,
       sx, sy, FRAME_W, FRAME_H,
-      px - drawSize / 2, py - drawSize / 2,
+      px - drawSize / 2, py - drawSize / 2 + idleOffset,
       drawSize, drawSize
     );
   } else {
