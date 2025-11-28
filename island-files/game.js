@@ -122,10 +122,11 @@ function draw() {
   if (sprite.complete && sprite.naturalWidth) {
     // map direction to row index in the sprite sheet
     // adjust if your rows are in a different order
-    const dirIndex =
-      player.dir === "right" ? 0 :
-      player.dir === "left"  ? 1 :
-      player.dir === "down"  ? 2 : 3; // up = 3
+   const dirIndex =
+  player.dir === "right" ? 1 :   // row 1 = facing right
+  player.dir === "left"  ? 0 :   // row 0 = facing left
+  player.dir === "down"  ? 2 :   // row 2 = facing down
+  3;                             // row 3 = facing up
 
     const sx = player.frame * FRAME_W;
     const sy = dirIndex * FRAME_H;
