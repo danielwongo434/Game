@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>The Island Files – Level 1</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #020617;
+      color: #e5e7eb;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+    }
+
+    header {
+      padding: 10px 0 4px;
+      font-size: 0.9rem;
+      text-align: center;
+    }
+
+    #game-container {
+      border: 1px solid #1f2937;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.8);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    canvas {
+      display: block;
+      background: #030712;
+    }
+
+    .hint {
+      font-size: 0.8rem;
+      color: #9ca3af;
+      margin-top: 6px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div><strong>The Island Files — Level 1</strong></div>
+    <div style="font-size: 0.8rem; color:#9ca3af;">Tiny test room with movement only</div>
+  </header>
+
+  <div id="game-container">
+    <canvas id="game" width="480" height="270"></canvas>
+  </div>
+
+  <div class="hint">
+    Move with <strong>WASD</strong> or <strong>Arrow keys</strong>.
+  </div>
+
+  <script src="game.js" defer></script>
+</body>
+</html>
