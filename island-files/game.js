@@ -11,6 +11,9 @@ const VIEW_ROWS = Math.floor(HEIGHT / TILE_SIZE); // 9
 const WORLD_ROWS = 18; // 2 x 9 rows (two "floors" stacked)
 const WORLD_HEIGHT = WORLD_ROWS * TILE_SIZE;
 
+// GAME STATE: "title" or "play"
+let gameState = "title";
+
 // TILE TYPES
 // 0 = floor, 1 = wall, 2 = corridor door (closed)
 let map = [];
@@ -218,7 +221,15 @@ const keys = {
 let spacePressed = false;
 
 window.addEventListener("keydown", (e) => {
+  // ENTER starts game from title
+  if (e.code === "Enter" && gameState === "title") {
+    gameState = "play";
+    showMessage("Infiltrate the offices. Avoid the drones.", 3000);
+    return;
+  }
+
   if (e.key in keys) keys[e.key] = true;
+
   if (e.code === "Space") {
     e.preventDefault();
     spacePressed = true;
@@ -385,7 +396,6 @@ function updateGuards(dt) {
 
     if (guardSeesPlayer(g)) {
       triggerDetection();
-      // Once one sees you, no need to check others this frame
       break;
     }
   }
@@ -474,6 +484,21 @@ function checkDoorOpen() {
 }
 
 function update(dt) {
+  // Always tick message timer + idle bobbing time, even on title
+  if (messageTimer > 0) {
+    messageTimer -= dt;
+    if (messageTimer <= 0) {
+      messageTimer = 0;
+      messageText = "";
+    }
+  }
+
+  // On title screen: no movement, no guards, just animations
+  if (gameState !== "play") {
+    idleTime += dt;
+    return;
+  }
+
   let dx = 0;
   let dy = 0;
 
@@ -530,15 +555,6 @@ function update(dt) {
 
   // Guards (movement + detection)
   updateGuards(dt);
-
-  // Message timer
-  if (messageTimer > 0) {
-    messageTimer -= dt;
-    if (messageTimer <= 0) {
-      messageTimer = 0;
-      messageText = "";
-    }
-  }
 }
 
 function updateCamera() {
@@ -721,8 +737,57 @@ function drawProps() {
   }
 }
 
+// ===== TITLE SCREEN DRAWING =====
+function drawTitleScreen() {
+  // Dark background
+  ctx.fillStyle = "#020617";
+  ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+  // Subtle animated scanline background
+  const stripeH = 6;
+  ctx.fillStyle = "rgba(15,23,42,0.8)";
+  for (let y = 0; y < HEIGHT; y += stripeH * 2) {
+    ctx.fillRect(0, y + (Math.sin(globalTime / 600) * 4), WIDTH, stripeH);
+  }
+
+  // Title text
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  const pulse = 0.5 + 0.5 * Math.sin(globalTime / 400);
+
+  ctx.fillStyle = `rgb(${120 + pulse * 60},${249},${255})`;
+  ctx.font = "bold 42px monospace";
+  ctx.fillText("THE ISLAND FILES", WIDTH / 2, HEIGHT / 2 - 60);
+
+  ctx.fillStyle = "#9ca3af";
+  ctx.font = "20px monospace";
+  ctx.fillText("LEVEL 1 · THE OFFICE BLOCK", WIDTH / 2, HEIGHT / 2 - 20);
+
+  ctx.fillStyle = "#e5e7eb";
+  ctx.font = "18px monospace";
+  ctx.fillText("Sneak past drones, grab the keycard,", WIDTH / 2, HEIGHT / 2 + 20);
+  ctx.fillText("unlock the corridor, reach the upper offices.", WIDTH / 2, HEIGHT / 2 + 50);
+
+  // Controls
+  ctx.fillStyle = "#a7f3d0";
+  ctx.font = "16px monospace";
+  ctx.fillText("Move: Arrow keys or WASD · Interact: SPACE", WIDTH / 2, HEIGHT / 2 + 90);
+
+  // Press Enter prompt
+  const alpha = 0.4 + 0.6 * Math.abs(Math.sin(globalTime / 500));
+  ctx.fillStyle = `rgba(190,242,100,${alpha})`;
+  ctx.font = "20px monospace";
+  ctx.fillText("PRESS ENTER TO BEGIN", WIDTH / 2, HEIGHT / 2 + 135);
+}
+
 function draw() {
   ctx.clearRect(0, 0, WIDTH, HEIGHT);
+
+  if (gameState === "title") {
+    drawTitleScreen();
+    return;
+  }
 
   const startRow = Math.floor(cameraY / TILE_SIZE);
   const endRow = Math.min(WORLD_ROWS - 1, startRow + VIEW_ROWS + 1);
