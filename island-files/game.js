@@ -4,11 +4,29 @@ const ctx = canvas.getContext("2d");
 const WIDTH = canvas.width;
 const HEIGHT = canvas.height;
 
+// Player state
 const player = {
   x: WIDTH / 2,
   y: HEIGHT / 2,
-  radius: 10,
-  speed: 0.18 // pixels per ms
+  speed: 0.18, // pixels per ms
+  dir: "down", // "up" | "down" | "left" | "right"
+  moving: false,
+  frame: 1,       // middle frame for idle
+  frameTime: 0
+};
+
+// Sprite sheet info
+const sprite = new Image();
+sprite.src = "agent.png"; // 3x4 frames
+const COLS = 3;
+const ROWS = 4;
+let FRAME_W = 32;
+let FRAME_H = 32;
+const ANIM_SPEED = 120; // ms per frame
+
+sprite.onload = () => {
+  FRAME_W = sprite.width / COLS;
+  FRAME_H = sprite.height / ROWS;
 };
 
 const keys = {
@@ -52,16 +70,36 @@ function update(dt) {
   if (keys.ArrowLeft || keys.a) dx -= 1;
   if (keys.ArrowRight || keys.d) dx += 1;
 
-  if (dx !== 0 || dy !== 0) {
+  player.moving = dx !== 0 || dy !== 0;
+
+  if (player.moving) {
     const len = Math.hypot(dx, dy);
     dx /= len;
     dy /= len;
+
     player.x += dx * player.speed * dt;
     player.y += dy * player.speed * dt;
+
+    // pick facing direction
+    if (Math.abs(dx) > Math.abs(dy)) {
+      player.dir = dx > 0 ? "right" : "left";
+    } else {
+      player.dir = dy > 0 ? "down" : "up";
+    }
+
+    // animate
+    player.frameTime += dt;
+    if (player.frameTime >= ANIM_SPEED) {
+      player.frameTime = 0;
+      player.frame = (player.frame + 1) % COLS; // 0,1,2
+    }
+  } else {
+    // idle: use middle frame (1)
+    player.frame = 1;
+    player.frameTime = 0;
   }
 
-  // keep inside the room
-  const r = player.radius;
+  const r = 12;
   player.x = Math.max(r, Math.min(WIDTH - r, player.x));
   player.y = Math.max(r, Math.min(HEIGHT - r, player.y));
 }
@@ -69,26 +107,44 @@ function update(dt) {
 function draw() {
   ctx.clearRect(0, 0, WIDTH, HEIGHT);
 
-  // room background
+  // background
   ctx.fillStyle = "#020617";
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-  // simple border
+  // border
   ctx.strokeStyle = "#1f2937";
   ctx.lineWidth = 4;
   ctx.strokeRect(2, 2, WIDTH - 4, HEIGHT - 4);
 
-  // player (temp chibi placeholder: small circle)
-  ctx.fillStyle = "#9ca3af"; // gray outfit
-  ctx.beginPath();
-  ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
-  ctx.fill();
+  const px = player.x;
+  const py = player.y;
 
-  // little "head" accent
-  ctx.fillStyle = "#e5e7eb";
-  ctx.beginPath();
-  ctx.arc(player.x, player.y - 4, player.radius * 0.45, 0, Math.PI * 2);
-  ctx.fill();
+  if (sprite.complete && sprite.naturalWidth) {
+    // map direction to row index in the sprite sheet
+    // adjust if your rows are in a different order
+    const dirIndex =
+      player.dir === "right" ? 0 :
+      player.dir === "left"  ? 1 :
+      player.dir === "down"  ? 2 : 3; // up = 3
+
+    const sx = player.frame * FRAME_W;
+    const sy = dirIndex * FRAME_H;
+
+    const drawSize = 48; // on-screen size (scaled down)
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(
+      sprite,
+      sx, sy, FRAME_W, FRAME_H,
+      px - drawSize / 2, py - drawSize / 2,
+      drawSize, drawSize
+    );
+  } else {
+    // fallback circle if sprite not loaded
+    ctx.fillStyle = "#9ca3af";
+    ctx.beginPath();
+    ctx.arc(px, py, 10, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
 requestAnimationFrame(loop);
