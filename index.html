@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Daniel's Game Lab – Web Game Hub</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #020617;
+      --card: #020617;
+      --border: #1f2937;
+      --accent: #22c55e;
+      --accent-soft: #22c55e22;
+      --text-main: #e5e7eb;
+      --text-muted: #9ca3af;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #22c55e22 0, #020617 50%, #000 100%);
+      color: var(--text-main);
+    }
+
+    header {
+      padding: 24px 16px 14px;
+      border-bottom: 1px solid #111827;
+      background: linear-gradient(135deg, #020617 0, #020617 60%, #0b1120 100%);
+    }
+
+    .wrapper {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .logo-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .logo {
+      font-weight: 700;
+      font-size: 1rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #a5b4fc;
+    }
+
+    .logo span {
+      color: var(--accent);
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      padding: 3px 9px;
+      border-radius: 999px;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      background: #020617;
+    }
+
+    h1 {
+      margin: 14px 0 6px;
+      font-size: clamp(2rem, 4vw, 2.6rem);
+    }
+
+    .subtitle {
+      margin: 0;
+      max-width: 640px;
+      font-size: 0.95rem;
+      color: var(--text-muted);
+    }
+
+    .hero-buttons {
+      margin-top: 16px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      text-decoration: none;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      background: transparent;
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease, transform 0.1s ease,
+        box-shadow 0.15s ease;
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      color: #020617;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+      background: var(--accent);
+      color: #020617;
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+      margin: 16px 0 6px;
+    }
+
+    .section-sub {
+      margin: 0 0 12px;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .game-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 14px;
+    }
+
+    .game-card {
+      background: var(--card);
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.7);
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    }
+
+    .game-thumb {
+      height: 140px;
+      background: radial-gradient(circle at top, var(--accent-soft), #020617 60%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.4rem;
+      color: #22c55e;
+    }
+
+    .game-body {
+      padding: 12px;
+      border-top: 1px solid #111827;
+      font-size: 0.9rem;
+    }
+
+    .game-title {
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .game-tag {
+      font-size: 0.8rem;
+      color: #a5b4fc;
+      margin-bottom: 6px;
+    }
+
+    .game-text {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .game-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+    }
+
+    .pill {
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid #374151;
+      color: #9ca3af;
+    }
+
+    .play-link {
+      font-size: 0.84rem;
+      text-decoration: none;
+      color: var(--accent);
+    }
+
+    .play-link:hover {
+      text-decoration: underline;
+    }
+
+    .game-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 18px 40px rgba(0,0,0,0.9);
+      border-color: var(--accent-soft);
+    }
+
+    footer {
+      text-align: center;
+      padding: 12px 16px 18px;
+      font-size: 0.8rem;
+      color: #6b7280;
+    }
+
+    @media (max-width: 600px) {
+      header {
+        padding-bottom: 18px;
+      }
+      .hero-buttons {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrapper">
+      <div class="logo-row">
+        <div class="logo">DANIEL'S <span>GAME LAB</span></div>
+        <span class="badge">Indie Web Games</span>
+      </div>
+      <h1>One Developer. Twenty Games.</h1>
+      <p class="subtitle">
+        A growing collection of small web games built from scratch. This hub will eventually
+        link out to every experiment, prototype, and polished release.
+      </p>
+
+      <div class="hero-buttons">
+        <a href="#games" class="btn primary">Browse Games</a>
+        <a href="#about" class="btn">Goal: $10K/mo Experiment</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section id="games">
+      <h2 class="section-title">Games Library</h2>
+      <p class="section-sub">
+        These are placeholders for now. As you build each game, replace the links with real URLs.
+        Each card can point to a GitHub Pages game, itch.io page, or any hosted build.
+      </p>
+
+      <div class="game-grid">
+        <!-- Game 1 -->
+        <article class="game-card">
+          <div class="game-thumb">1</div>
+          <div class="game-body">
+            <div class="game-title">Cyber Dodger</div>
+            <div class="game-tag">Arcade · Keyboard</div>
+            <p class="game-text">
+              Dodge incoming obstacles in a neon tunnel. Fast reactions, simple controls,
+              infinite difficulty scaling.
+            </p>
+            <div class="game-footer">
+              <span class="pill">Status: Not yet built</span>
+              <!-- Replace # with a real link later -->
+              <a href="#" class="play-link">Play →</a>
+            </div>
+          </div>
+        </article>
+
+        <!-- Game 2 -->
+        <article class="game-card">
+          <div class="game-thumb">2</div>
+          <div class="game-body">
+            <div class="game-title">Bird Migration Clicker</div>
+            <div class="game-tag">Clicker · Idle</div>
+            <p class="game-text">
+              Guide a flock across the map, upgrading routes and avoiding storms. Idle
+              mechanics with simple visuals.
+            </p>
+            <div class="game-footer">
+              <span class="pill">Status: Not yet built</span>
+              <a href="#" class="play-link">Play →</a>
+            </div>
+          </div>
+        </article>
+
+        <!-- Game 3 -->
+        <article class="game-card">
+          <div class="game-thumb">3</div>
+          <div class="game-body">
+            <div class="game-title">Lab Escape</div>
+            <div class="game-tag">Puzzle · Top-down</div>
+            <p class="game-text">
+              Move through a small lab maze, avoiding hazards and unlocking doors in the
+              fewest moves possible.
+            </p>
+            <div class="game-footer">
+              <span class="pill">Status: Not yet built</span>
+              <a href="#" class="play-link">Play →</a>
+            </div>
+          </div>
+        </article>
+
+        <!-- Game 4 -->
+        <article class="game-card">
+          <div class="game-thumb">4</div>
+          <div class="game-body">
+            <div class="game-title">Matrix Runner</div>
+            <div class="game-tag">Endless Runner</div>
+            <p class="game-text">
+              Dash across a scrolling code city, jumping over glitches and sliding under
+              firewalls.
+            </p>
+            <div class="game-footer">
+              <span class="pill">Status: Not yet built</span>
+              <a href="#" class="play-link">Play →</a>
+            </div>
+          </div>
+        </article>
+
+        <!-- Game 5 -->
+        <article class="game-card">
+          <div class="game-thumb">5</div>
+          <div class="game-body">
+            <div class="game-title">Orbit Tap</div>
+            <div class="game-tag">Casual · Mobile-friendly</div>
+            <p class="game-text">
+              Tap to keep a satellite in stable orbit while avoiding random debris. Simple,
+              timing-based gameplay.
+            </p>
+            <div class="game-footer">
+              <span class="pill">Status: Not yet built</span>
+              <a href="#" class="play-link">Play →</a>
+            </div>
+          </div>
+        </article>
+
+        <!-- Game 6 -->
+        <article class="game-card">
+          <div class="game-thumb">6</div>
+          <div class="game-body">
+            <div class="game-title">Chem Click Combo</div>
+            <div class="game-tag">Clicker · Education</div>
+            <p class="game-text">
+              Combine elements or reactions to unlock new upgrades. Lightly educational,
+              inspired by your chemistry background.
+            </p>
+            <div class="game-footer">
+              <span class="pill">Status: Not yet built</span>
+              <a href="#" class="play-link">Play →</a>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="about">
+      <h2 class="section-title">The $10K/mo Experiment</h2>
+      <p class="section-sub">
+        This site tracks a simple experiment: build many small web games, learn fast,
+        and see how far a solo dev can go in a year. There are no guarantees—but every
+        finished game is progress in code, design, and shipping.
+      </p>
+      <p class="section-sub">
+        As games go live, this hub will link to real builds with analytics and monetization
+        experiments (ads, donations, or premium versions).
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    © <span id="year"></span> Daniel's Game Lab • Built with HTML, CSS, and JavaScript
+  </footer>
+
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
