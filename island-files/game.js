@@ -197,7 +197,8 @@ sprite.onload = () => {
 };
 
 // ==== NPC SETUP ====
-const npcStart = tileCenter(12, 2); // top-right room of upper cluster
+// Patrol in the top-right office of the upper cluster
+const npcStart = tileCenter(12, 2); // roughly room center
 
 const npc = {
   x: npcStart.x,
@@ -205,20 +206,26 @@ const npc = {
   dir: "left",
   frame: 0,
   frameTime: 0,
-  speed: 0.06,
-  moving: true,
-  minX: npcStart.x - TILE_SIZE, // patrol range inside room
-  maxX: npcStart.x + TILE_SIZE,
+  speed: 0.10,
+  pathIndex: 0,
   talkRadius: 80,
   talking: false
 };
 
+// Square patrol path around the desks
+npc.path = [
+  tileCenter(12, 2), // top right
+  tileCenter(10, 2), // top left
+  tileCenter(10, 3), // bottom left
+  tileCenter(12, 3)  // bottom right
+];
+
 let npcDialog = "";
 let npcDialogTimer = 0;
 
-// NPC sprite sheet
+// NPC sprite sheet (new female sprite)
 const npcSprite = new Image();
-npcSprite.src = "npc.png";
+npcSprite.src = "female_npc.png";  // <-- make sure this file exists
 let NPC_FRAME_W = 32;
 let NPC_FRAME_H = 32;
 
@@ -329,6 +336,7 @@ function resetLevel() {
   npc.x = npcStart.x;
   npc.y = npcStart.y;
   npc.dir = "left";
+  npc.pathIndex = 0;
   npc.talking = false;
   npcDialog = "";
   npcDialogTimer = 0;
@@ -442,35 +450,49 @@ function updateGuards(dt) {
 
 // ==== NPC UPDATE ====
 function updateNpc(dt) {
-  // simple left-right patrol
+  // Patrol along square path
+  let target = npc.path[npc.pathIndex];
+  let dx = target.x - npc.x;
+  let dy = target.y - npc.y;
+  let dist = Math.hypot(dx, dy);
+
+  if (dist < 4) {
+    npc.pathIndex = (npc.pathIndex + 1) % npc.path.length;
+    target = npc.path[npc.pathIndex];
+    dx = target.x - npc.x;
+    dy = target.y - npc.y;
+    dist = Math.hypot(dx, dy);
+  }
+
+  // Direction based on movement
+  if (Math.abs(dx) > Math.abs(dy)) {
+    npc.dir = dx > 0 ? "right" : "left";
+  } else {
+    npc.dir = dy > 0 ? "down" : "up";
+  }
+
+  // Normalize movement
+  if (dist > 0) {
+    dx /= dist;
+    dy /= dist;
+  }
+
+  npc.x += dx * npc.speed * dt;
+  npc.y += dy * npc.speed * dt;
+
+  // Animate walking
   npc.frameTime += dt;
-  if (npc.frameTime > 200) {
+  if (npc.frameTime > 180) {
     npc.frameTime = 0;
     npc.frame = (npc.frame + 1) % 3;
   }
 
-  let nx = npc.x;
-  if (npc.dir === "left") {
-    nx -= npc.speed * dt;
-    if (nx < npc.minX) {
-      nx = npc.minX;
-      npc.dir = "right";
-    }
-  } else {
-    nx += npc.speed * dt;
-    if (nx > npc.maxX) {
-      nx = npc.maxX;
-      npc.dir = "left";
-    }
-  }
-  npc.x = nx;
-
   // TALK interaction
   if (spacePressed && !npc.talking) {
-    const dx = player.x - npc.x;
-    const dy = player.y - npc.y;
-    const dist = Math.hypot(dx, dy);
-    if (dist < npc.talkRadius) {
+    const pdx = player.x - npc.x;
+    const pdy = player.y - npc.y;
+    const pDist = Math.hypot(pdx, pdy);
+    if (pDist < npc.talkRadius) {
       npc.talking = true;
       npcDialog =
         "I'm glad you're here Wangotango! only you can find those files!!!";
@@ -836,10 +858,14 @@ function drawNpc() {
   const npcy = npc.y - cameraY;
 
   if (npcSprite.complete && npcSprite.naturalWidth) {
-    const dirIndex =
-      npc.dir === "right" ? 1 :
-      npc.dir === "left"  ? 3 :
-      npc.dir === "down"  ? 0 : 2;
+    let dirIndex;
+    // female_npc.png rows: down (0), left (1), right (2), up (3)
+    switch (npc.dir) {
+      case "down": dirIndex = 0; break;
+      case "left": dirIndex = 1; break;
+      case "right": dirIndex = 2; break;
+      default: dirIndex = 3; // up
+    }
 
     const sx = npc.frame * NPC_FRAME_W;
     const sy = dirIndex * NPC_FRAME_H;
@@ -1036,4 +1062,3 @@ function draw() {
 }
 
 requestAnimationFrame(loop);
-
