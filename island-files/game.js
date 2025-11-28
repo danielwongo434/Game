@@ -108,7 +108,7 @@ function draw() {
   ctx.clearRect(0, 0, WIDTH, HEIGHT);
 
   // background
- ctx.fillStyle = "#6b6b6b"; // room color, similar to sprite background
+ ctx.fillStyle = "#b3b3b3"; // exact match to sprite background
  ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
   // border
