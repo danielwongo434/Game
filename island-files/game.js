@@ -887,12 +887,19 @@ function drawNpc() {
 
   if (npcSprite.complete && npcSprite.naturalWidth) {
     let dirIndex;
-    // female_npc.png rows: down (0), left (1), right (2), up (3)
+    // female_npc.png rows: down (0), right (1), left (2), up (3)
     switch (npc.dir) {
-      case "down": dirIndex = 0; break;
-      case "left": dirIndex = 1; break;
-      case "right": dirIndex = 2; break;
-      default: dirIndex = 3; // up
+      case "down":
+        dirIndex = 0;
+        break;
+      case "right":
+        dirIndex = 1; // <-- right is row 1
+        break;
+      case "left":
+        dirIndex = 2; // <-- left is row 2
+        break;
+      default:
+        dirIndex = 3; // up
     }
 
     const sx = npc.frame * NPC_FRAME_W;
